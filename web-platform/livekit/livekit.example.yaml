@@ -1,0 +1,11 @@
+# Optional voice service. Set your own API key and secret; match them in web/.env.local.
+port: 7880
+bind_addresses:
+  - "127.0.0.1"
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50100
+  use_external_ip: true
+keys:
+  REPLACE_WITH_YOUR_API_KEY: REPLACE_WITH_YOUR_API_SECRET

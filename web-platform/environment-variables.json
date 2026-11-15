@@ -1,0 +1,50 @@
+{
+  "web": [
+    "AUTH_DISCORD_ID",
+    "AUTH_DISCORD_SECRET",
+    "AUTH_SECRET",
+    "AUTH_URL",
+    "CDN_DIR",
+    "CUSTOM_SKINS_ENABLED",
+    "DATABASE_URL",
+    "DISCORD_BOT_TOKEN",
+    "DISCORD_ENABLED",
+    "DISCORD_GUILD_ID",
+    "DISCORD_UCP_ROLE_ID",
+    "LIVEKIT_API_KEY",
+    "LIVEKIT_API_SECRET",
+    "LIVEKIT_URL",
+    "NODE_ENV",
+    "RCON_HOST",
+    "RCON_PORT",
+    "RECAPTCHA_SECRET_KEY",
+    "RECAPTCHA_SITE_KEY",
+    "SAMP_AGENT_KEY",
+    "SAMP_AGENT_URL",
+    "SAMP_MAX_PLAYERS",
+    "SAMP_QUERY_HOST",
+    "SMTP_FROM",
+    "SMTP_HOST",
+    "SMTP_PASS",
+    "SMTP_PORT",
+    "SMTP_SECURE",
+    "SMTP_USER",
+    "VOICE_DEV_KEY",
+    "VOICE_ENABLED",
+    "WEB_BIND"
+  ],
+  "api": [
+    "PORT",
+    "WEB_URL"
+  ],
+  "samp-agent": [
+    "AGENT_BIND",
+    "AGENT_PORT",
+    "SAMP_AGENT_KEY",
+    "SAMP_BIN",
+    "SAMP_DIR",
+    "SAMP_HOST",
+    "SAMP_PORT",
+    "SAMP_RCON_PASSWORD"
+  ]
+}

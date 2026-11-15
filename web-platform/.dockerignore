@@ -1,0 +1,10 @@
+**/node_modules
+**/.next
+**/dist
+**/.git
+**/.env*
+**/uploads
+**/private-media
+**/cdn
+**/*.log
+**/*.tsbuildinfo

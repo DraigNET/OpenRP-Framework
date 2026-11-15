@@ -1,0 +1,21 @@
+/* Global reset applied to every app (UCP, ACP, public site).
+   Each app paints its own background on its wrapper; this just removes the
+   browser's default body margin (which was showing as a white frame) and
+   gives a dark fallback so nothing flashes white. */
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #0b0d1a;
+}
+
+/* Scrollbar — all apps are dark-themed so a consistent navy/blue bar fits everywhere */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: #0b0d1a; }
+::-webkit-scrollbar-thumb { background: #657ee8; border-radius: 3px; }

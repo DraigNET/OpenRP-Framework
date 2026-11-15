@@ -1,0 +1,593 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Account {
+  account_id               Int       @id @default(autoincrement())
+  account_name             String    @unique
+  account_password         String
+  account_email            String
+  account_email_verified   Int       @default(0)
+  account_email_verifycode String    @default("")
+  account_email_verify_sent_at Int?
+  account_stafflevel       Int       @default(0)
+  account_online           Int       @default(0)
+  account_factionteam      Int       @default(0)
+  account_premiumlevel     Int       @default(0)
+  account_quiz_passed      Int       @default(0)
+  account_discordname      String    @default("")
+  account_lastip           String    @default("")
+  account_register_date    Int       @default(0)
+  account_lastlogin        DateTime?
+  discord_id               BigInt?   @unique
+  discord_verified         Int       @default(0)
+  discord_linked_at        Int?
+  password_reset_version   Int       @default(0)
+  password_reset_at        Int?
+  twofa_enabled            Int       @default(0)
+  twofa_attempts           Int       @default(0)
+  twofa_code_hash          String?
+  twofa_expires            Int?
+  twofa_last_sent          Int?
+  remember_token_hash      String?
+  remember_token_expires   Int?
+  account_gunban           Int       @default(0)
+  account_bikeban          Int       @default(0)
+  account_facban           Int       @default(0)
+  account_vehban           Int       @default(0)
+  account_sprintban        Int       @default(0)
+
+  characters               Character[]
+  ipHistory                AccountIpHistory[]
+  loginAttempts            UcpLoginAttempt[]
+  bans                     Ban[]
+  adminRecords             AdminRecord[]
+  webCommands              WebCommand[]
+
+  @@map("accounts")
+}
+
+model Character {
+  player_id              Int     @id @default(autoincrement())
+  account_id             Int
+  player_name            String  @unique
+  player_online          Int     @default(0)
+  player_registered      Int     @default(0)
+  player_skinid          Int     @default(0)
+  player_customskin      Int     @default(0)
+  player_cash            Int     @default(0)
+  player_bankcash        Int     @default(0)
+  player_savings         Int     @default(0)
+  player_level           Int     @default(1)
+  player_hours           Int     @default(0)
+  player_exp             Int     @default(0)
+  player_registerdate    Int     @default(0)
+  player_logindate       Int     @default(0)
+  player_driverslicense  Int     @default(0)
+  player_gunlicense      Int     @default(0)
+  player_ccwlicense      Int     @default(0)
+  player_guardlicense    Int     @default(0)
+  player_guardfplicense  Int     @default(0)
+  player_lockpicks       Int     @default(0)
+  player_phnumber        Int     @default(0)
+  player_phcredit        Int     @default(0)
+  player_health          Float   @default(100)
+  player_armour          Float   @default(0)
+  player_factionid       Int     @default(0)
+  player_factiontier     Int     @default(0)
+  player_factionrank     String  @default("")
+  player_factionsquad    Int     @default(0)
+  player_factionsquad2   Int     @default(0)
+  player_factionsquad3   Int     @default(0)
+  player_factionbadge    Int     @default(0)
+  player_outstanding_fines Int   @default(0)
+  player_rentroom        Int     @default(0)
+  player_spawnproperty   Int     @default(0)
+  player_maskid          Int     @default(0)
+  player_fat             Float   @default(0)
+  player_muscle          Float   @default(0)
+  player_stamina         Float   @default(0)
+  player_fightstyle      Int     @default(0)
+  player_attribute_sex     Int   @default(0)
+  player_attribute_age     Int   @default(18)
+  player_attribute_race    Int   @default(0)
+  player_attribute_eyes    Int   @default(0)
+  player_attribute_hair    Int   @default(0)
+  player_attribute_body    Int   @default(0)
+  player_attribute_height  Int   @default(170)
+  player_attribute_desc    String @default("") @db.VarChar(255)
+  player_respect         Int     @default(0)
+  player_fear            Int     @default(0)
+  player_ajail_time      Int     @default(0)
+  player_division        Int?
+
+  account                Account       @relation(fields: [account_id], references: [account_id])
+  weapons                PlayerWeapon[]
+
+  @@map("characters")
+}
+
+model Faction {
+  faction_id            Int    @id @default(autoincrement())
+  faction_name          String
+  faction_abbrev        String @default("")
+  faction_type          Int    @default(0)
+  faction_bank          Int    @default(0)
+  faction_playerslots   Int    @default(20)
+  faction_carslots      Int    @default(10)
+  faction_show_activity Int    @default(0)
+  faction_active_minutes Int   @default(0)
+  faction_assigned_emmet Int   @default(0)
+  faction_hex           Int   @default(0)
+
+  logs                  FactionLog[]
+
+  @@map("factions")
+}
+
+model Vehicle {
+  vehicle_sqlid          Int       @id @default(autoincrement())
+  vehicle_modelid        Int
+  vehicle_type           Int       @default(0)
+  vehicle_owner          Int       @default(0)
+  vehicle_license        String    @default("")
+  vehicle_color_a        Int       @default(0)
+  vehicle_color_b        Int       @default(0)
+  vehicle_fuel           Int       @default(100)
+  vehicle_health         Float     @default(1000)
+  vehicle_mileage        Int       @default(0)
+  vehicle_impounded      Int       @default(0)
+  vehicle_impounded_until DateTime?
+  vehicle_squad          Int?
+
+  @@map("vehicles")
+}
+
+model PlayerWeapon {
+  character_id   Int
+  weapon_id      Int
+  weapon_ammo    Int       @default(0)
+
+  character      Character @relation(fields: [character_id], references: [player_id])
+
+  @@id([character_id, weapon_id])
+  @@map("player_weapons")
+}
+
+model AdminRecord {
+  record_id      Int     @id @default(autoincrement())
+  account_id     Int
+  character_id   Int     @default(0)
+  record_type    Int     @default(0)
+  record_reason  String  @default("") @db.VarChar(64)
+  record_time    Int     @default(0)
+  record_admin   Int     @default(0)
+  record_date    String  @default("") @db.VarChar(36)
+
+  account        Account @relation(fields: [account_id], references: [account_id])
+
+  @@map("admin_record")
+}
+
+model FactionCustomModel {
+  faction_model_id        Int    @id @default(autoincrement())
+  faction_model_factionid Int    @default(0)
+  faction_model_baseid    Int    @default(0)
+  faction_model_skinid    Int    @default(0)
+  faction_model_dff       String @default("")
+  faction_model_txd       String @default("")
+  faction_model_enabled   Int    @default(0)
+
+  @@map("faction_custom_models")
+}
+
+model FactionSkin {
+  faction_skin_id        Int @id @default(autoincrement())
+  faction_skin_factionid Int @default(0)
+  faction_skin_skinid    Int @default(0)
+  faction_skin_tier      Int @default(0)
+  faction_skin_squad     Int @default(0)
+  faction_skin_armory_type Int @default(0) // locker type this uniform is offered at; 0 = every locker
+
+  @@map("faction_skins")
+}
+
+model FactionArmoryType {
+  armory_type_id Int    @id @default(autoincrement())
+  faction_id     Int    @default(0)
+  type_name      String @default("")
+  type_enabled   Int    @default(0)
+
+  @@map("faction_armory_types")
+}
+
+model FactionArmoryWeapon {
+  armory_weapon_id Int  @id @default(autoincrement())
+  faction_id       Int  @default(0)
+  armory_type_id   Int? // NULL = faction-wide "legacy" weapon (applies to every type)
+  weapon_id        Int @default(0)
+  weapon_ammo      Int @default(0)
+  tier_limit       Int @default(0)
+  squad_id         Int @default(0)
+  off_duty_allowed Int @default(0)
+  weapon_enabled   Int @default(0)
+  sort_order       Int @default(0)
+
+  @@map("faction_armory_weapons")
+}
+
+model FactionArmory {
+  armory_id      Int    @id @default(autoincrement())
+  faction_id     Int    @default(0)
+  armory_type_id Int    @default(0)
+  armory_name    String @default("")
+  armory_desc    String @default("")
+  armory_x       Float  @default(0)
+  armory_y       Float  @default(0)
+  armory_z       Float  @default(0)
+  armory_int     Int    @default(0)
+  armory_vw      Int    @default(0)
+  armory_enabled Int    @default(0)
+  armory_squad   Int    @default(0) // 0 = general locker; otherwise only members of this squad can use it
+
+  @@map("faction_armories")
+}
+
+model FactionLog {
+  log_id        Int      @id @default(autoincrement())
+  faction_id    Int
+  action        Int      @default(0)
+  amount        Int      @default(0)
+  balance_after Int      @default(0)
+  reason        String   @default("")
+  log_time      DateTime @default(now())
+
+  faction       Faction @relation(fields: [faction_id], references: [faction_id])
+
+  @@map("faction_logs")
+}
+
+model EmmetPurchaseLog {
+  id                   Int      @id @default(autoincrement())
+  faction_id           Int
+  purchased_at         DateTime @default(now())
+  emmet_sqlid          Int      @default(0)
+  emmet_name           String   @default("")
+  buyer_character_id   Int      @default(0)
+  buyer_account_id     Int      @default(0)
+  buyer_character_name String   @default("")
+  buyer_account_name   String   @default("")
+  buyer_faction_tier   Int      @default(0)
+  weapon_id            Int      @default(0)
+  weapon_name          String   @default("")
+  weapon_ammo          Int      @default(0)
+  purchase_price       Int      @default(0)
+
+  @@map("emmet_purchase_logs")
+}
+
+model CriminalRecord {
+  record_id          Int    @id @default(autoincrement())
+  record_holder      String @default("")
+  record_desc        String @default("") @db.VarChar(128)
+  record_crime_type  Int    @default(0)
+  record_date        BigInt @default(0)
+  record_officer     String @default("")
+  record_officer_rank String @default("")
+  record_status      Int    @default(0)
+  record_revoker     String @default("")
+
+  @@map("criminalrecords")
+}
+
+model CriminalFine {
+  fine_id          Int      @id @default(autoincrement())
+  fine_date        DateTime @default(now())
+  fine_player_name String   @default("")
+  fine_giver_name  String   @default("")
+  fine_giver_rank  String   @default("")
+  fine_reason      String   @default("")
+  fine_amount      Int      @default(0)
+  fine_status      Int      @default(0)
+  fine_revoker     String   @default("")
+
+  @@map("criminalfines")
+}
+
+
+
+
+model Property {
+  property_id       Int    @id @default(autoincrement())
+  property_owner    Int    @default(0)
+  property_name     String @default("")
+  property_type     Int    @default(0)
+  property_buy_type Int    @default(0)
+  property_price    Int    @default(0)
+  property_rent     Int    @default(0)
+  property_ext_x    Float  @default(0)
+  property_ext_y    Float  @default(0)
+
+  @@map("properties")
+}
+
+
+
+model GangZone {
+  gz_sqlid     Int     @id @default(autoincrement())
+  gz_min_x     Float
+  gz_min_y     Float
+  gz_max_x     Float
+  gz_max_y     Float
+  gz_faction   Int
+  gz_contested Int     @default(0)
+
+  @@map("gangzones")
+}
+
+model FactionDivision {
+  division_id     Int    @id @default(autoincrement())
+  faction_id      Int
+  division_name   String @default("")
+  division_order  Int    @default(0)
+  division_leader Int    @default(0)
+
+  @@map("faction_divisions")
+}
+
+model CharacterLoginHistory {
+  login_id     Int      @id @default(autoincrement())
+  character_id Int
+  account_id   Int
+  faction_id   Int      @default(0)
+  login_time   Int      @default(0)
+  created_at   DateTime @default(now())
+
+  @@map("character_login_history")
+}
+
+model RulesQuizAttempt {
+  attempt_id      Int    @id @default(autoincrement())
+  account_id      Int
+  score           Int    @default(0)
+  total_questions Int      @default(0)
+  required_score  Int      @default(0)
+  passed          Int      @default(0)
+  answers_json    String   @default("") @db.Text
+  ip_address      String   @default("")
+  user_agent      String @default("") @db.Text
+  created_at      Int    @default(0)
+
+  @@map("rules_quiz_attempts")
+}
+
+model Ban {
+  ban_id       Int    @id @default(autoincrement())
+  account_id   Int
+  account_name String @default("")
+  account_ip   String @default("")
+  ban_admin    String @default("")
+  ban_reason   String @default("")
+  ban_time     Int    @default(0)
+  unban_time   Int    @default(0)
+
+  account      Account @relation(fields: [account_id], references: [account_id])
+
+  @@map("bans")
+}
+
+model AccountIpHistory {
+  account_id   Int
+  ip_address   String
+  first_seen   Int    @default(0)
+  last_seen    Int    @default(0)
+  access_count Int    @default(1)
+
+  account      Account @relation(fields: [account_id], references: [account_id])
+
+  @@id([account_id, ip_address])
+  @@map("account_ip_history")
+}
+
+model UcpLoginAttempt {
+  id           Int    @id @default(autoincrement())
+  account_id   Int?
+  account_name String
+  ip_address   String
+  success      Int    @default(0)
+  created_at   Int    @default(0)
+
+  account      Account? @relation(fields: [account_id], references: [account_id])
+
+  @@map("ucp_login_attempts")
+}
+
+model UcpRegistrationAttempt {
+  id           Int    @id @default(autoincrement())
+  account_name String @default("")
+  email        String @default("")
+  ip_address   String
+  success      Int    @default(0)
+  reason       String @default("")
+  created_at   Int    @default(0)
+
+  @@map("ucp_registration_attempts")
+}
+
+model MultiaccountIpWhitelist {
+  whitelist_id Int     @id @default(autoincrement())
+  ip_address   String  @unique
+  reason       String?
+  created_by   Int?
+  created_at   Int?
+  expires_at   Int?
+
+  @@map("multiaccount_ip_whitelist")
+}
+
+model MultiaccountAccountWhitelist {
+  whitelist_id Int     @id @default(autoincrement())
+  account_id   Int     @unique
+  reason       String?
+  created_by   Int?
+  created_at   Int?
+  expires_at   Int?
+
+  @@map("multiaccount_account_whitelist")
+}
+
+/// Accounts exempt from the in-game VPN/proxy kick. Keyed on account_id, not name,
+/// so a rename never orphans an entry -- names are always joined back from `accounts`.
+model VpnWhitelist {
+  whitelist_id Int     @id @default(autoincrement())
+  account_id   Int     @unique
+  reason       String?
+  created_by   Int?
+  created_at   Int?
+
+  @@map("vpn_whitelist")
+}
+
+model WebCommand {
+  id           Int       @id @default(autoincrement())
+  command      String    @db.VarChar(64)
+  params       String    @default("") @db.VarChar(512)
+  status       String    @default("pending") @db.VarChar(16)
+  result       String?   @db.VarChar(255)
+  issued_by    Int
+  issued_at    DateTime  @default(now())
+  processed_at DateTime?
+
+  account      Account   @relation(fields: [issued_by], references: [account_id])
+
+  @@map("web_commands")
+}
+
+// ── ORP Dispatch (voice app) ───────────────────────────────────────────────
+// Web-owned tables (prefix voice_). The SAMP gamemode never touches these.
+
+/** Editable channel tree. Mirrors what the desktop app renders + LiveKit rooms. */
+model VoiceChannel {
+  id          Int     @id @default(autoincrement())
+  channel_key String  @unique              // LiveKit room id, e.g. "lspd-tac1"
+  department  String  @db.VarChar(16)      // lspd | lssd | ops
+  parent_id   Int?                          // nesting: groups contain channels
+  node_type   String  @default("channel") @db.VarChar(16) // channel | group | spacer
+  label       String
+  sort_order  Int     @default(0)
+  locked      Int     @default(0)
+  mutual      Int     @default(0)
+
+  @@index([department])
+  @@index([parent_id])
+  @@map("voice_channels")
+}
+
+/** Permission/server groups (e.g. Command, IAB, SWAT) for special channel access. */
+model VoiceGroup {
+  id         Int     @id @default(autoincrement())
+  name       String
+  department String? @db.VarChar(16)        // null = cross-department
+  color      String  @default("") @db.VarChar(16)
+  sort_order Int     @default(0)
+
+  @@map("voice_groups")
+}
+
+/** Assigns a character to a group. Identity is per-character, not per-account. */
+model VoiceGroupMember {
+  id           Int @id @default(autoincrement())
+  group_id     Int
+  character_id Int
+  assigned_by  Int?
+  assigned_at  Int @default(0)
+
+  @@unique([group_id, character_id])
+  @@index([character_id])
+  @@map("voice_group_members")
+}
+
+/**
+ * Restricts a channel to specific groups. A channel with NO rows here is open to
+ * its whole department; any rows make it group-gated. Enforced in /api/voice-token.
+ */
+model VoiceChannelAccess {
+  id         Int @id @default(autoincrement())
+  channel_id Int
+  group_id   Int
+
+  @@unique([channel_id, group_id])
+  @@index([channel_id])
+  @@map("voice_channel_access")
+}
+
+
+
+
+
+/** Bell notifications in the UCP header. Written by the gamemode (Notify_Character) and the website. */
+model Notification {
+  id         Int     @id @default(autoincrement())
+  account_id Int
+  type       String  @db.VarChar(32)
+  title      String  @db.VarChar(96)
+  body       String  @default("") @db.VarChar(255)
+  link       String? @db.VarChar(255)
+  created_at Int
+  read_at    Int?
+
+  @@index([account_id, read_at, created_at])
+  @@map("notifications")
+}
+
+/** Per-account UCP settings. ui_hue is the accent colour (0-360, 210 = default blue). */
+model AccountPreference {
+  account_id Int @id
+  ui_hue     Int @default(210)
+  updated_at Int @default(0)
+
+  @@map("account_preferences")
+}
+
+
+/** Closing cash/bank/savings per character per day, written hourly by the gamemode. */
+model CharacterDailyStat {
+  character_id Int
+  day          DateTime @db.Date
+  cash         Int
+  bank         Int
+  savings      Int
+
+  @@id([character_id, day])
+  @@map("character_daily_stats")
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/** Uploaded personal skin metadata; custom model IDs are 25000 + player_skin_id. */
+model PlayerSkin {
+  player_skin_id Int @id @default(autoincrement())
+  player_skin_charid Int
+  player_skin_baseid Int
+  player_skin_dff String @db.VarChar(63)
+  player_skin_txd String @db.VarChar(63)
+  player_skin_lastused Int @default(0)
+  player_skin_disabled Int @default(0)
+  @@index([player_skin_charid])
+  @@map("player_skins")
+}

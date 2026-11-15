@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenRP Framework server control agent
+After=network.target
+
+[Service]
+Type=simple
+User=openrp
+WorkingDirectory=/opt/openrp-framework/web-platform/samp-agent
+EnvironmentFile=/opt/openrp-framework/web-platform/samp-agent/.env
+ExecStart=/usr/bin/node /opt/openrp-framework/web-platform/samp-agent/index.mjs
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

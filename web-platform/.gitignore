@@ -1,0 +1,14 @@
+# Local credentials and generated output
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+**/coverage/
+**/.env*
+!**/.env.example
+**/*.tsbuildinfo
+**/*.log
+**/*.BAK
+**/uploads/
+**/private-media/
+**/cdn/

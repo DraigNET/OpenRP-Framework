@@ -1,0 +1,16 @@
+{
+  "name": "samp-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "node-pty": "^1.0.0"
+  },
+  "scripts": {
+    "start": "node --env-file=.env index.mjs",
+    "check": "node --check index.mjs",
+    "test": "node --test model-path.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

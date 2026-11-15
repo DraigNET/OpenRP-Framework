@@ -1,0 +1,5 @@
+{
+  "note": "Static table/column coverage only. Fresh database and runtime tests are also required.",
+  "missingTables": [],
+  "missingColumns": []
+}

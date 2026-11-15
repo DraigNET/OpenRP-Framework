@@ -1,0 +1,68 @@
+# --- compiled output -------------------------------------------------------
+gamemodes/gamemode.amx
+filterscripts/*.amx
+*.amx
+
+# --- local secrets / per-server config -------------------------------------
+# Copy gamemodes/config/secrets.example.pwn to gamemodes/config/secrets.pwn
+/gamemodes/config/secrets.pwn
+/mysql.ini
+/server.cfg
+/config.json
+/bans.json
+
+# --- sampctl / downloaded dependencies and runtime binaries ------------------
+dependencies/
+plugins/
+components/
+pawno/
+/*.exe
+/*.dll
+/*.so
+/*.pdb
+legacy/discord-connector.inc
+
+# --- logs, dumps, generated files --------------------------------------------
+logs/
+*.log
+/log.txt
+/server_log.txt
+crashinfo.txt
+crashdetectinfo.txt
+*.dmp
+/pawnraknet.cfg
+/vc_collision.bin
+scriptfiles/Furniture_Prices.html
+*.BAK
+
+# --- local database dumps (never commit player data) -------------------------
+# The clean schema lives in database/schema.sql and IS tracked.
+*.sql
+!/database/schema.sql
+!/web-platform/web/prisma/sql/*.sql
+
+# --- editor ------------------------------------------------------------------
+.vscode/
+
+# --- custom assets ---------------------------------------------------------------
+# The framework ships only the UI sprite sheets in models/ (licence cards, phone, gym HUD).
+# Anything else you add there is ignored unless you un-ignore it below.
+models/*
+!models/license.txd
+!models/phone.txd
+!models/phone_nice.txd
+!models/phone.dff
+!models/gymbar.txd
+!models/sprite_model.dff
+old_models/
+npcmodes/
+Linux/
+
+# Disposable local preview database and process logs
+.local-preview/
+
+# Generated from the server owner's GTA installation
+/scriptfiles/colandreas/*.cadb
+
+# The framework's own marketing/documentation site has its own repository.
+/Website/

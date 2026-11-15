@@ -1,0 +1,52 @@
+name: Build crashdetect plugin
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-crashdetect.yml'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      # dependencies/ is gitignored (sampctl pulls it locally), so it isn't
+      # available from actions/checkout - clone the pinned crashdetect
+      # source directly instead (version pin matches pawn.json).
+      #
+      # Built inside an Ubuntu 18.04 (bionic) container to keep the glibc
+      # requirement as low as possible - the previous crashdetect.so was
+      # built on a modern host (glibc 2.35+) and failed to load on the
+      # production server with "GLIBC_2.33 not found". Bionic ships glibc
+      # 2.27, which matches the base image the crashdetect project itself
+      # uses in its own Dockerfile for releases.
+      - name: Build crashdetect.so (Ubuntu 18.04 container)
+        run: |
+          mkdir -p src
+          docker run --rm \
+            -v ${{ github.workspace }}/src:/src \
+            ubuntu:18.04 \
+            bash -c "
+              set -e
+              apt-get update -qq
+              apt-get install -y --no-install-recommends ca-certificates git gcc g++ gcc-multilib g++-multilib make cmake
+              git clone --recurse-submodules --branch v4.22 --depth 1 https://github.com/Y-Less/samp-plugin-crashdetect.git /src/crashdetect
+              cd /src/crashdetect
+              mkdir -p build
+              cd build
+              cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+              make -j\$(nproc) crashdetect
+            "
+
+      - name: Collect artifact
+        run: |
+          find src/crashdetect/build -name "crashdetect.so" -exec cp {} ./crashdetect.so \;
+          file ./crashdetect.so
+          objdump -T ./crashdetect.so | grep -oP 'GLIBC_[0-9.]+' | sort -Vu | tail -5
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crashdetect-linux
+          path: crashdetect.so
+          retention-days: 30
