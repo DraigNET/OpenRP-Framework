@@ -1,5 +1,7 @@
 # OpenRP Framework
 
+Full searchable documentation: [OpenRP Framework documentation](https://openrp.draignet.uk/docs/).
+
 **OpenRP Framework** (ORP Framework for short) is an empty, ready-to-extend **roleplay gamemode** for **open.mp**, written in Pawn. It may run on SA-MP with some changes, but that is untested.
 
 It contains the systems every serious RP server ends up needing -- accounts and characters, a full admin suite,

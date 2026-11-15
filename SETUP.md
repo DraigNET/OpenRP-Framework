@@ -1,5 +1,7 @@
 # Installing OpenRP Framework
 
+Full searchable documentation: [OpenRP Framework documentation](https://openrp.draignet.uk/docs/).
+
 The framework starts with empty player, vehicle, property and gang-zone data.
 SAPD and FDSA are the starter factions. Coordinates marked
 `TODO: set coordinates for your map` need configuring before play.
@@ -19,7 +21,7 @@ SA-MP compatibility is not certified.
    `mariadb -u root -p < database/schema.sql` in a shell supporting redirection.
    On Windows, open the client and run `source F:/path/to/project/database/schema.sql`.
 3. Generate the stock collision database with the [ColAndreas Wizard](https://github.com/Pottus/ColAndreas) using your own GTA: San Andreas installation. Put the resulting file at `scriptfiles/colandreas/ColAndreas.cadb`. It is an external runtime prerequisite; the game stops with a clear error if it is absent.
-4. Create a database user with access to `omprp`. Configure it in `mysql.ini`.
+4. Create a database user with access to `omprp`. Copy `mysql.example.ini` to `mysql.ini` and `config.example.json` to `config.json`, then configure your connection.
    Copy `gamemodes/config/secrets.example.pwn` to the ignored `secrets.pwn`, replace
    placeholders and set branding in `gamemodes/config/header.pwn`.
 5. Copy `web-platform/web/.env.example` to `.env.local`. Set `DATABASE_URL` to the
@@ -72,8 +74,8 @@ Use separate services for MariaDB, the website and a **game + agent** container.
 Keep the game and its agent in the same container/process namespace: mounting
 files into a separate agent container does not give it process ownership.
 
-Build the web service with `web-platform/web/Dockerfile`, using
-`web-platform/web` as its build context. Supply environment variables through
+Build the web service with `web-platform/web/Dockerfile` (Dockerfile path `web/Dockerfile` within the context), using
+`web-platform` as its build context. Supply environment variables through
 EasyPanel and use the private database hostname in `DATABASE_URL`. Import the
 schema and bootstrap the administrator before opening the website. Keep real
 credentials out of Dockerfiles and image layers.
