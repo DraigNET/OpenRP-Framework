@@ -298,9 +298,6 @@ model CriminalFine {
   @@map("criminalfines")
 }
 
-
-
-
 model Property {
   property_id       Int    @id @default(autoincrement())
   property_owner    Int    @default(0)
@@ -314,8 +311,6 @@ model Property {
 
   @@map("properties")
 }
-
-
 
 model GangZone {
   gz_sqlid     Int     @id @default(autoincrement())
@@ -467,68 +462,6 @@ model WebCommand {
   @@map("web_commands")
 }
 
-// ── ORP Dispatch (voice app) ───────────────────────────────────────────────
-// Web-owned tables (prefix voice_). The SAMP gamemode never touches these.
-
-/** Editable channel tree. Mirrors what the desktop app renders + LiveKit rooms. */
-model VoiceChannel {
-  id          Int     @id @default(autoincrement())
-  channel_key String  @unique              // LiveKit room id, e.g. "lspd-tac1"
-  department  String  @db.VarChar(16)      // lspd | lssd | ops
-  parent_id   Int?                          // nesting: groups contain channels
-  node_type   String  @default("channel") @db.VarChar(16) // channel | group | spacer
-  label       String
-  sort_order  Int     @default(0)
-  locked      Int     @default(0)
-  mutual      Int     @default(0)
-
-  @@index([department])
-  @@index([parent_id])
-  @@map("voice_channels")
-}
-
-/** Permission/server groups (e.g. Command, IAB, SWAT) for special channel access. */
-model VoiceGroup {
-  id         Int     @id @default(autoincrement())
-  name       String
-  department String? @db.VarChar(16)        // null = cross-department
-  color      String  @default("") @db.VarChar(16)
-  sort_order Int     @default(0)
-
-  @@map("voice_groups")
-}
-
-/** Assigns a character to a group. Identity is per-character, not per-account. */
-model VoiceGroupMember {
-  id           Int @id @default(autoincrement())
-  group_id     Int
-  character_id Int
-  assigned_by  Int?
-  assigned_at  Int @default(0)
-
-  @@unique([group_id, character_id])
-  @@index([character_id])
-  @@map("voice_group_members")
-}
-
-/**
- * Restricts a channel to specific groups. A channel with NO rows here is open to
- * its whole department; any rows make it group-gated. Enforced in /api/voice-token.
- */
-model VoiceChannelAccess {
-  id         Int @id @default(autoincrement())
-  channel_id Int
-  group_id   Int
-
-  @@unique([channel_id, group_id])
-  @@index([channel_id])
-  @@map("voice_channel_access")
-}
-
-
-
-
-
 /** Bell notifications in the UCP header. Written by the gamemode (Notify_Character) and the website. */
 model Notification {
   id         Int     @id @default(autoincrement())
@@ -565,19 +498,6 @@ model CharacterDailyStat {
   @@id([character_id, day])
   @@map("character_daily_stats")
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /** Uploaded personal skin metadata; custom model IDs are 25000 + player_skin_id. */
 model PlayerSkin {

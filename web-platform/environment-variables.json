@@ -11,9 +11,6 @@
     "DISCORD_ENABLED",
     "DISCORD_GUILD_ID",
     "DISCORD_UCP_ROLE_ID",
-    "LIVEKIT_API_KEY",
-    "LIVEKIT_API_SECRET",
-    "LIVEKIT_URL",
     "NODE_ENV",
     "RCON_HOST",
     "RCON_PORT",
@@ -29,8 +26,6 @@
     "SMTP_PORT",
     "SMTP_SECURE",
     "SMTP_USER",
-    "VOICE_DEV_KEY",
-    "VOICE_ENABLED",
     "WEB_BIND"
   ],
   "api": [

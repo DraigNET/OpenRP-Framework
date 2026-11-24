@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Removed unused external voice integration, SDK, configuration and web-only voice
+  tables from the clean schema. Core game, UCP, ACP and editor are unaffected.
+
 ## [0.1.0] - 2026-11-24
 
 Initial framework cut, derived from a live roleplay server's gamemode.

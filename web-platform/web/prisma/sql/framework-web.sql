@@ -11,54 +11,9 @@ CREATE TABLE IF NOT EXISTS `faction_custom_models` (
     PRIMARY KEY (`faction_model_id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `voice_channels` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `channel_key` VARCHAR(191) NOT NULL,
-    `department` VARCHAR(16) NOT NULL,
-    `parent_id` INTEGER NULL,
-    `node_type` VARCHAR(16) NOT NULL DEFAULT 'channel',
-    `label` VARCHAR(191) NOT NULL,
-    `sort_order` INTEGER NOT NULL DEFAULT 0,
-    `locked` INTEGER NOT NULL DEFAULT 0,
-    `mutual` INTEGER NOT NULL DEFAULT 0,
 
-    UNIQUE INDEX `voice_channels_channel_key_key`(`channel_key`),
-    INDEX `voice_channels_department_idx`(`department`),
-    INDEX `voice_channels_parent_id_idx`(`parent_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS `voice_groups` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `name` VARCHAR(191) NOT NULL,
-    `department` VARCHAR(16) NULL,
-    `color` VARCHAR(16) NOT NULL DEFAULT '',
-    `sort_order` INTEGER NOT NULL DEFAULT 0,
 
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `voice_group_members` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `group_id` INTEGER NOT NULL,
-    `character_id` INTEGER NOT NULL,
-    `assigned_by` INTEGER NULL,
-    `assigned_at` INTEGER NOT NULL DEFAULT 0,
-
-    INDEX `voice_group_members_character_id_idx`(`character_id`),
-    UNIQUE INDEX `voice_group_members_group_id_character_id_key`(`group_id`, `character_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `voice_channel_access` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `channel_id` INTEGER NOT NULL,
-    `group_id` INTEGER NOT NULL,
-
-    INDEX `voice_channel_access_channel_id_idx`(`channel_id`),
-    UNIQUE INDEX `voice_channel_access_channel_id_group_id_key`(`channel_id`, `group_id`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `player_skins` (
     `player_skin_id` INTEGER NOT NULL AUTO_INCREMENT,

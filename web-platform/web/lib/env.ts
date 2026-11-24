@@ -31,13 +31,5 @@ export const env = {
   // Game server query
   get sampQueryHost() { return optional('SAMP_QUERY_HOST', optional('RCON_HOST', '127.0.0.1')) },
   get rconPort() { return Number(optional('RCON_PORT', '7777')) },
-  get voiceEnabled() { return process.env.VOICE_ENABLED === 'true' && ['LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'].every(name => !!process.env[name]?.trim()) },
-  // LiveKit voice. URL is the public wss endpoint; key/secret must
-  // match the livekit server's LIVEKIT_KEYS pair.
-  get livekitUrl() { return required('LIVEKIT_URL') },
-  get livekitApiKey() { return required('LIVEKIT_API_KEY') },
-  get livekitApiSecret() { return required('LIVEKIT_API_SECRET') },
-  // Optional dev key: lets the Dispatch app fetch tokens without a UCP session
-  // while the deep-link auth flow is still being built. Unset in production.
-  get voiceDevKey() { return optional('VOICE_DEV_KEY') },
+
 }

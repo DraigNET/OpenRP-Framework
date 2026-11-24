@@ -3,6 +3,12 @@
 Windows-first desktop configuration and local server controls. It connects directly
 to MariaDB, so the website, ACP, API and samp-agent do not need to be running.
 
+## Run the portable Windows app
+
+Download the Windows editor ZIP from [GitHub Releases](https://github.com/DraigNET/OpenRP-Framework/releases/latest),
+extract the entire folder, and open `OpenRP Framework Editor.exe`. Keep all runtime
+files and the `resources` folder beside it. Node.js is only needed for source builds.
+
 ## Run from source
 
 The source, comments, tests and lockfile are included in this repository. Use a
