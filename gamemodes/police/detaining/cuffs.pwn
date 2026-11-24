@@ -339,7 +339,7 @@ static CuffedPlayer[MAX_PLAYERS][E_CUFFED_PLAYER_DATA];
 static bool:CanPlayerUseCuffs(playerid)
 {
 	return IsPlayerInLEAFaction(playerid, true) || IsPlayerInSecurityFaction(playerid, true) || IsPlayerGovCop(playerid, true)
-		|| IsPlayerInFirmField(playerid, FIRM_FIELD_SECURITY, true);
+		|| CanUseSecurityTools(playerid);
 }
 
 hook OnPlayerUpdate(playerid)

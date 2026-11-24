@@ -6,24 +6,16 @@
 // ============================================================================
 
 #define COLOR_IMPOUND	0x1F85DEFF
-#define IMPOUND_FEE 2500
+#define IMPOUND_FEE (Runtime_Int(RT_VEHICLES_IMPOUND_FEE)) // Cached database setting; edit through ACP.
 #define DIALOG_UNIMPOUND_CONFIRM 8000
 
 // Loads the impound lot points.
-Impound_LoadEntities() {
-
-	// carunimpound_point 1089.1823,	-1740.5542,	13.5054
-	// (in the general middle of the lot + bigger range)
-	CreateDynamicMapIcon(1070.2982,-1762.1105,13.3904, 37, 0xFFFFFFFF);
-	CreateDynamicPickup(1247, 1, 1070.2982,-1762.1105,13.3904);
-	CreateDynamic3DTextLabel(sprintf("[Car Impound Lot]{DEDEDE}\nAvailable Commands: /impound, /unimpound\n(Unimpound costs $%s)", IntegerWithDelimiter(IMPOUND_FEE)), COLOR_IMPOUND, 1070.2982,-1762.1105,13.3904, 10.0 );
-
-}
+Impound_LoadEntities() { return 1; } // Runtime_RebuildServices owns the handles.
 
 // /unimpound - pays to get an impounded vehicle back.
 CMD:unimpound(playerid, params[])
 {
-    if (!IsPlayerInRangeOfPoint(playerid, 30.0, 1070.2982,-1762.1105,13.3904))
+    if (!Runtime_AtLocation(playerid,RT_LOC_IMPOUND))
     {
         return SendServerMessage(playerid, COLOR_IMPOUND, "Impound", "A3A3A3",
             "You must be at the unimpound point! Check for a \"?\" on your minimap.");

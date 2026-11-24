@@ -278,13 +278,13 @@ enum E_SERVER_DATA
 new Server [ E_SERVER_DATA ] ;
 
 // Locations (make these dynamic eventually... /createpoint [type: chopshop/dmv/...], /movepoint, /deletepoint, /setpoint?)
-#define CHOPSHOP_X      (0.0) // TODO: set coordinates for your map
-#define CHOPSHOP_Y      (0.0) // TODO: set coordinates for your map
-#define CHOPSHOP_Z      (0.0) // TODO: set coordinates for your map
+#define CHOPSHOP_X (RuntimeLocations[RT_LOC_CHOPSHOP][RLOC_X]) // Cached database setting; edit through ACP.
+#define CHOPSHOP_Y (RuntimeLocations[RT_LOC_CHOPSHOP][RLOC_Y]) // Cached database setting; edit through ACP.
+#define CHOPSHOP_Z (RuntimeLocations[RT_LOC_CHOPSHOP][RLOC_Z]) // Cached database setting; edit through ACP.
 
-#define SERVER_DMV_X	(0.0) // TODO: set coordinates for your map
-#define SERVER_DMV_Y	(0.0) // TODO: set coordinates for your map
-#define SERVER_DMV_Z	(0.0) // TODO: set coordinates for your map
+#define SERVER_DMV_X (RuntimeLocations[RT_LOC_DMV][RLOC_X]) // Cached database setting; edit through ACP.
+#define SERVER_DMV_Y (RuntimeLocations[RT_LOC_DMV][RLOC_Y]) // Cached database setting; edit through ACP.
+#define SERVER_DMV_Z (RuntimeLocations[RT_LOC_DMV][RLOC_Z]) // Cached database setting; edit through ACP.
 
 
 // Forwards
@@ -370,6 +370,12 @@ GetAngleToPos(Float: PX, Float: PY, Float: X, Float: Y);
 //#include "event_easter.pwn"
 //#include "event_halloween.pwn"
 
+// Placement adapters depend on the completed job and property modules.
+#include "property/runtime.pwn"
+#include "vehicle/runtime.pwn"
+#include "config/runtime/loader.pwn"
+#include "config/runtime/world.pwn"
+
 forward OnStartSQL();
 // Callback used as a hook point that runs once the database is connected.
 public OnStartSQL()
@@ -400,6 +406,7 @@ main()
 {
     printf("[DEBUG] 1 start");
     if (!MySQL_Init()) { SendRconCommand("exit"); return 0; }
+    if (!RuntimeConfig_Init()) { print("[FATAL] Apply runtime migrations 001 through 005 from database/migrations/."); SendRconCommand("exit"); return 0; }
     printf("[DEBUG] 2 MySQL_Init");
     CallLocalFunction("OnStartSQL", "");            printf("[DEBUG] 3 OnStartSQL");
     if (!CA_Init()) {
@@ -472,6 +479,7 @@ main()
 public OnGameModeExit()
 {
 
+    RuntimeConfig_Shutdown();
     mysql_close(mysql);
 
     return true ;

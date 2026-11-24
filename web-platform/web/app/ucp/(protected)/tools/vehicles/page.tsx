@@ -1,8 +1,8 @@
 import { dealershipInventory, DEALERSHIP_TYPES } from '@/lib/data/dealership'
 import VehicleCatalogue from './VehicleCatalogue'
 
-export default function VehicleCataloguePage() {
-  const inventory = dealershipInventory()
+export default async function VehicleCataloguePage() {
+  const inventory = await dealershipInventory()
   // Serialise to plain object keyed by type with its label
   const categories = Object.entries(inventory).map(([type, vehicles]) => ({
     type: Number(type),

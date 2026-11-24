@@ -1,104 +1,33 @@
-// ============================================================================
-// File: paynspray/locations.pwn
-// Garage positions for Pay 'n' Spray (E_PNS_LOCATIONS). Rows at 0,0 are ignored until you set
-// coordinates for your map.
-// ============================================================================
-
-enum E_PNS_DATA
-{
-    Float:E_PNS_POS_X,
-    Float:E_PNS_POS_Y,
-    Float:E_PNS_POS_Z,
-    E_PNS_NAME[32]      // shown in /gps
-};
-
-new E_PNS_LOCATIONS[][E_PNS_DATA] =
-{
-    // Garages: { X, Y, Z, "Name" }. A row at 0,0 is ignored everywhere.
-    // TODO: set coordinates for your map
-    { 0.0, 0.0, 0.0, "Garage 1" },
-    { 0.0, 0.0, 0.0, "Garage 2" },
-    { 0.0, 0.0, 0.0, "Garage 3" }
-};
-
-new DynamicText3D:E_PNS_LABEL[sizeof(E_PNS_LOCATIONS)];
-
-#include <YSI_Coding\y_hooks>
+// Garages use stable runtime location records. Handles are staged before replacement,
+// so a failed streamer allocation leaves the previous world intact.
+new DynamicText3D:GarageLabels[64], GarageIcons[64], GarageCount;
 
 forward LoadPayNSpray();
-// Creates the labels and map icons for each Pay 'n' Spray garage and fills in the /gps rows.
-public LoadPayNSpray()
-{
-    new string[128];
-
-    for (new i, j = sizeof(E_PNS_LOCATIONS); i < j; i++)
-    {
-        if (E_PNS_LOCATIONS[i][E_PNS_POS_X] == 0.0 && E_PNS_LOCATIONS[i][E_PNS_POS_Y] == 0.0) continue;
-
-        format(string, sizeof(string),
-			"{2172ff}Pay'n'Spray\n" \
-			"{DEDEDE}Use {ffde21}/repaircar\n" \
-			"{DEDEDE}Use {ffde21}/carcolorlist {DEDEDE}for colour codes\n");
-
-        E_PNS_LABEL[i] = CreateDynamic3DTextLabel(
-            string,
-            0xFFFFFFFF,
-            E_PNS_LOCATIONS[i][E_PNS_POS_X],
-            E_PNS_LOCATIONS[i][E_PNS_POS_Y],
-            E_PNS_LOCATIONS[i][E_PNS_POS_Z] + 0.5,
-            12.0,
-            INVALID_PLAYER_ID,
-            INVALID_VEHICLE_ID,
-            true,
-            0,
-            0
-        );
-
-        CreateDynamicMapIcon(
-            E_PNS_LOCATIONS[i][E_PNS_POS_X],
-            E_PNS_LOCATIONS[i][E_PNS_POS_Y],
-            E_PNS_LOCATIONS[i][E_PNS_POS_Z],
-            63,
-            -1
-        );
-        printf("Creating PNS label %d", i);
+public LoadPayNSpray() {
+    new DynamicText3D:labels[64], icons[64], count;
+    for (new i; i<RuntimeLocationCount; i++) {
+        if (RuntimeLocations[i][RLOC_CATEGORY]!=RT_CATEGORY_GARAGE || !RuntimeLocations[i][RLOC_ENABLED]) continue;
+        if (count>=64) return 0;
+        labels[count]=CreateDynamic3DTextLabel("{2172ff}Pay'n'Spray\n{DEDEDE}Use /repaircar or /carcolorlist",0xFFFFFFFF,
+            RuntimeLocations[i][RLOC_X],RuntimeLocations[i][RLOC_Y],RuntimeLocations[i][RLOC_Z]+0.5,12.0,
+            INVALID_PLAYER_ID,INVALID_VEHICLE_ID,true,RuntimeLocations[i][RLOC_WORLD],RuntimeLocations[i][RLOC_INTERIOR]);
+        icons[count]=CreateDynamicMapIcon(RuntimeLocations[i][RLOC_X],RuntimeLocations[i][RLOC_Y],RuntimeLocations[i][RLOC_Z],63,-1,
+            RuntimeLocations[i][RLOC_WORLD],RuntimeLocations[i][RLOC_INTERIOR]);
+        count++;
+        if (!IsValidDynamic3DTextLabel(labels[count-1]) || !IsValidDynamicMapIcon(icons[count-1])) {
+            for (new n; n<count; n++) { if(IsValidDynamic3DTextLabel(labels[n])) DestroyDynamic3DTextLabel(labels[n]); if(IsValidDynamicMapIcon(icons[n])) DestroyDynamicMapIcon(icons[n]); }
+            return 0;
+        }
     }
-
-    // The /gps list has spare "Pay 'N' Spray" rows (gps/data.pwn). Fill them from the real locations, in order.
-    new row = 0;
-
-    for (new g = 0, j = sizeof(GPS); g < j && row < sizeof(E_PNS_LOCATIONS); g ++)
-    {
-        if (strcmp(GPS[g][E_GPS_DESC], "Pay 'N' Spray", false, 13) != 0) continue;
-
-        while (row < sizeof(E_PNS_LOCATIONS) && E_PNS_LOCATIONS[row][E_PNS_POS_X] == 0.0 && E_PNS_LOCATIONS[row][E_PNS_POS_Y] == 0.0) row ++;
-        if (row >= sizeof(E_PNS_LOCATIONS)) break;
-
-        format(GPS[g][E_GPS_DESC], 64, "Pay 'N' Spray: %s", E_PNS_LOCATIONS[row][E_PNS_NAME]);
-        GPS[g][E_GPS_POS_X] = E_PNS_LOCATIONS[row][E_PNS_POS_X];
-        GPS[g][E_GPS_POS_Y] = E_PNS_LOCATIONS[row][E_PNS_POS_Y];
-        GPS[g][E_GPS_POS_Z] = E_PNS_LOCATIONS[row][E_PNS_POS_Z];
-        row ++;
-    }
-
-    printf("[+] %i Pay'n'Spray locations loaded.", sizeof(E_PNS_LOCATIONS));
+    for (new i; i<GarageCount; i++) { if(IsValidDynamic3DTextLabel(GarageLabels[i])) DestroyDynamic3DTextLabel(GarageLabels[i]); if(IsValidDynamicMapIcon(GarageIcons[i])) DestroyDynamicMapIcon(GarageIcons[i]); }
+    GarageCount=count;
+    for (new i; i<count; i++) { GarageLabels[i]=labels[i]; GarageIcons[i]=icons[i]; }
     return 1;
 }
 
-// Returns true if the player is at a Pay 'n' Spray garage.
-IsPlayerNearPayNSpray(playerid)
-{
-    for (new i = sizeof(E_PNS_LOCATIONS) - 1; i != -1; --i)
-    {
-        if (E_PNS_LOCATIONS[i][E_PNS_POS_X] == 0.0 && E_PNS_LOCATIONS[i][E_PNS_POS_Y] == 0.0) continue;
-
-        if (IsPlayerInRangeOfPoint(playerid, 15.0,
-            E_PNS_LOCATIONS[i][E_PNS_POS_X],
-            E_PNS_LOCATIONS[i][E_PNS_POS_Y],
-            E_PNS_LOCATIONS[i][E_PNS_POS_Z]))
-        {
-            return true;
-        }
-    }
+// Both world and interior must match; enabled coordinates at zero are valid.
+IsPlayerNearPayNSpray(playerid) {
+    for (new i; i<RuntimeLocationCount; i++)
+        if (RuntimeLocations[i][RLOC_CATEGORY]==RT_CATEGORY_GARAGE && Runtime_AtLocation(playerid,i)) return true;
     return false;
 }

@@ -47,6 +47,7 @@ export const ACP_AREAS: AcpArea[] = [
     id: 'operations', label: 'Operations', icon: 'fa-sliders',
     items: [
       { href: '/acp/server', label: 'Server Control', min: ADMIN_LVL.LEAD },
+      { href: '/acp/configuration', label: 'Configuration', min: ADMIN_LVL.MANAGER },
       { href: '/acp/commands', label: 'Commands', min: ADMIN_LVL.LEAD },
       { href: '/acp/donators', label: 'Donators', min: ADMIN_LVL.GENERAL },
       { href: '/acp/skins', label: 'Custom Skins', min: ADMIN_LVL.MANAGER },

@@ -5,52 +5,23 @@
 // Commands: /carscrap /deletecar
 // ============================================================================
 
-#define SCRAPYARD_POS_X (0.0) // TODO: set coordinates for your map
-#define SCRAPYARD_POS_Y (0.0) // TODO: set coordinates for your map
-#define SCRAPYARD_POS_Z (0.0) // TODO: set coordinates for your map
+#define SCRAPYARD_POS_X (RuntimeLocations[RT_LOC_SCRAPYARD_LAND][RLOC_X]) // Cached database setting; edit through ACP.
+#define SCRAPYARD_POS_Y (RuntimeLocations[RT_LOC_SCRAPYARD_LAND][RLOC_Y]) // Cached database setting; edit through ACP.
+#define SCRAPYARD_POS_Z (RuntimeLocations[RT_LOC_SCRAPYARD_LAND][RLOC_Z]) // Cached database setting; edit through ACP.
 
-#define SCRAPYARD_BOAT_POS_X (0.0) // TODO: set coordinates for your map
-#define SCRAPYARD_BOAT_POS_Y (0.0) // TODO: set coordinates for your map
-#define SCRAPYARD_BOAT_POS_Z (0.0) // TODO: set coordinates for your map
+#define SCRAPYARD_BOAT_POS_X (RuntimeLocations[RT_LOC_SCRAPYARD_BOAT][RLOC_X]) // Cached database setting; edit through ACP.
+#define SCRAPYARD_BOAT_POS_Y (RuntimeLocations[RT_LOC_SCRAPYARD_BOAT][RLOC_Y]) // Cached database setting; edit through ACP.
+#define SCRAPYARD_BOAT_POS_Z (RuntimeLocations[RT_LOC_SCRAPYARD_BOAT][RLOC_Z]) // Cached database setting; edit through ACP.
 
-#define SCRAPYARD_AIR_POS_X (0.0) // TODO: set coordinates for your map
-#define SCRAPYARD_AIR_POS_Y (0.0) // TODO: set coordinates for your map
-#define SCRAPYARD_AIR_POS_Z (0.0) // TODO: set coordinates for your map
+#define SCRAPYARD_AIR_POS_X (RuntimeLocations[RT_LOC_SCRAPYARD_AIR][RLOC_X]) // Cached database setting; edit through ACP.
+#define SCRAPYARD_AIR_POS_Y (RuntimeLocations[RT_LOC_SCRAPYARD_AIR][RLOC_Y]) // Cached database setting; edit through ACP.
+#define SCRAPYARD_AIR_POS_Z (RuntimeLocations[RT_LOC_SCRAPYARD_AIR][RLOC_Z]) // Cached database setting; edit through ACP.
 
 #define SCRAPYARD_PICKUP_MODEL 851
 #define SCRAPYARD_MAP_ICON	37
 
 // Loads the scrap yard points.
-ScrapYard_LoadEntities() {
-
-	print(" * [SCRAPYARD] Loaded vehicle scrapyards (land, boat, air).") ;
-
-	CreateDynamic3DTextLabel("[Vehicle Scrap Location]\n{DEDEDE}Available commands: /carscrap",
-		COLOR_BLUE, SCRAPYARD_POS_X, SCRAPYARD_POS_Y, SCRAPYARD_POS_Z, 15.0 
-	);
-
-	CreateDynamicPickup(SCRAPYARD_PICKUP_MODEL, 1,  SCRAPYARD_POS_X, SCRAPYARD_POS_Y, SCRAPYARD_POS_Z ) ;
-	CreateDynamicMapIcon(SCRAPYARD_POS_X, SCRAPYARD_POS_Y, SCRAPYARD_POS_Z, SCRAPYARD_MAP_ICON, 0 );
-
-
-	CreateDynamic3DTextLabel("[Boat Scrap Location]\n{DEDEDE}Available commands: /carscrap",
-		COLOR_BLUE, SCRAPYARD_BOAT_POS_X, SCRAPYARD_BOAT_POS_Y, SCRAPYARD_BOAT_POS_Z, 15.0 
-	);
-
-	CreateDynamicPickup(SCRAPYARD_PICKUP_MODEL, 1,  SCRAPYARD_BOAT_POS_X, SCRAPYARD_BOAT_POS_Y, SCRAPYARD_BOAT_POS_Z ) ;
-	CreateDynamicMapIcon(SCRAPYARD_BOAT_POS_X, SCRAPYARD_BOAT_POS_Y, SCRAPYARD_BOAT_POS_Z, SCRAPYARD_MAP_ICON, 0 );
-
-
-	CreateDynamic3DTextLabel("[Airplane Scrap Location]\n{DEDEDE}Available commands: /carscrap",
-		COLOR_BLUE, SCRAPYARD_AIR_POS_X, SCRAPYARD_AIR_POS_Y, SCRAPYARD_AIR_POS_Z, 15.0 
-	);
-
-	CreateDynamicPickup(SCRAPYARD_PICKUP_MODEL, 1,  SCRAPYARD_AIR_POS_X, SCRAPYARD_AIR_POS_Y, SCRAPYARD_AIR_POS_Z ) ;
-	CreateDynamicMapIcon(SCRAPYARD_AIR_POS_X, SCRAPYARD_AIR_POS_Y, SCRAPYARD_AIR_POS_Z, SCRAPYARD_MAP_ICON, 0 );
-
-
-	return true ;
-}
+ScrapYard_LoadEntities() { return 1; } // Runtime_RebuildServices owns the handles.
 
 #define SCRAPYARD_TYPE_LAND		(0)
 #define SCRAPYARD_TYPE_BOAT		(1)
@@ -72,9 +43,9 @@ Vehicle_GetYardForModel(modelid) {
 // Which scrapyard the player is standing at (within a few steps), or -1.
 ScrapYard_GetNearby(playerid) {
 
-	if ( IsPlayerInRangeOfPoint ( playerid, 10.0, SCRAPYARD_POS_X, SCRAPYARD_POS_Y, SCRAPYARD_POS_Z ) ) return SCRAPYARD_TYPE_LAND ;
-	if ( IsPlayerInRangeOfPoint ( playerid, 10.0, SCRAPYARD_BOAT_POS_X, SCRAPYARD_BOAT_POS_Y, SCRAPYARD_BOAT_POS_Z ) ) return SCRAPYARD_TYPE_BOAT ;
-	if ( IsPlayerInRangeOfPoint ( playerid, 10.0, SCRAPYARD_AIR_POS_X, SCRAPYARD_AIR_POS_Y, SCRAPYARD_AIR_POS_Z ) ) return SCRAPYARD_TYPE_AIR ;
+    if(Runtime_AtLocation(playerid,RT_LOC_SCRAPYARD_LAND)) return SCRAPYARD_TYPE_LAND;
+    if(Runtime_AtLocation(playerid,RT_LOC_SCRAPYARD_BOAT)) return SCRAPYARD_TYPE_BOAT;
+    if(Runtime_AtLocation(playerid,RT_LOC_SCRAPYARD_AIR)) return SCRAPYARD_TYPE_AIR;
 
 	return -1 ;
 }

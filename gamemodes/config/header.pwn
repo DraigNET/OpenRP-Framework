@@ -56,11 +56,11 @@ new TEST_SERVER = 0;
 #endif
 
 #if !defined SERVER_VEH_RENT_FEE
-	#define SERVER_VEH_RENT_FEE			( 125 )
+	#define SERVER_VEH_RENT_FEE (Runtime_Int(RT_VEHICLES_RENTAL_FEE)) // Cached database setting; edit through ACP.
 #endif 
 
 #if !defined SERVER_DMV_FEE
-	#define SERVER_DMV_FEE 			( 250 )
+	#define SERVER_DMV_FEE (Runtime_Int(RT_DMV_FEE)) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined SERVER_MAX_NAME_UNDERSCORES

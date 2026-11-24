@@ -50,8 +50,8 @@ enum E_GATE_DATA {
 #define MAX_GATE_FACTIONS 5
 
 new GateSQLPairs[MAX_GATE_PAIRS][2] = {
-    {17, 18}, // Top Plaza Gash Doors
-    {19, 20}, // Bottom Plaza Gash Doors
+    {-1, -1}, // No map-specific pairs are configured by default.
+    {-1, -1},
     {-1, -1},
     {-1, -1},
     {-1, -1},
@@ -71,7 +71,7 @@ new GateSQLPairs[MAX_GATE_PAIRS][2] = {
 #endif
 
 #if !defined GATE_SETUP_ID // id assigned to gates that are being mapped.
-	#define GATE_SETUP_ID MAX_GATES + 1 // don 't forget to reset xd
+	#define GATE_SETUP_ID (-2) // Unsaved editor sentinel; cannot collide with a persistent SQL ID.
 #endif
 
 enum {
@@ -123,7 +123,9 @@ Gate_GetClosestEntity(playerid) {
 			continue ;
 		}
 
-		if ( IsPlayerInRangeOfPoint(playerid, Gate [ i ] [ E_GATE_RADIUS ], Gate [ i ] [ E_GATE_CLOSED_POS_X ], Gate [ i ] [ E_GATE_CLOSED_POS_Y ], Gate [ i ] [ E_GATE_CLOSED_POS_Z ] ) ) {
+		if ( GetPlayerInterior(playerid) == Gate[i][E_GATE_INTERIOR] &&
+             GetPlayerVirtualWorld(playerid) == Gate[i][E_GATE_VIRTUALWORLD] &&
+             IsPlayerInRangeOfPoint(playerid, Gate [ i ] [ E_GATE_RADIUS ], Gate [ i ] [ E_GATE_CLOSED_POS_X ], Gate [ i ] [ E_GATE_CLOSED_POS_Y ], Gate [ i ] [ E_GATE_CLOSED_POS_Z ] ) ) {
 
 			return i ;
 		}
@@ -179,7 +181,7 @@ Gate_LoadEntities() {
 	print(" * [GATE] Loading all gates...");
 
 	inline Gate_OnDataLoad() {
-		for (new i = 0, r = cache_num_rows(); i < r; ++i) {
+		for (new i = 0, r = cache_num_rows(); i < r && i < MAX_GATES; ++i) {
 			cache_get_value_int (i, "gate_sqlid", Gate [ i ] [ E_GATE_SQLID ]);
 
 			cache_get_value_int (i, "gate_type", Gate [ i ] [ E_GATE_TYPE ]);

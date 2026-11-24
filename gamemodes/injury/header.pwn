@@ -81,11 +81,11 @@ new bool: PlayerDamage [ MAX_PLAYERS ] [ MAX_BODY_PARTS ] ;
 #endif
 
 #if !defined SURGERY_FEE
-	#define SURGERY_FEE ( 50 )
+	#define SURGERY_FEE (Runtime_Int(RT_MEDICAL_SURGERY_FEE)) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined BANDAGE_FEE
-	#define BANDAGE_FEE	( 15 )
+	#define BANDAGE_FEE (Runtime_Int(RT_MEDICAL_BANDAGE_FEE)) // Cached database setting; edit through ACP.
 #endif
 
 // Handles a player dying: records the death, drops carried items and starts injury mode.

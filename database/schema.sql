@@ -6,6 +6,10 @@
 -- (SAPD and FDSA).
 --
 -- Usage:   mysql -u root -p < database/schema.sql
+-- Import into a new empty database; runtime defaults and journals are included.
+-- No separate numbered runtime SQL files are needed after this full import.
+-- Includes runtime configuration tables/defaults/triggers and firm lifecycle
+-- routines. ACP, UCP, gamemode and desktop editor use this same baseline.
 -- Then set the same database name / credentials in mysql.ini.
 -- ===========================================================================
 
@@ -1262,7 +1266,12 @@ CREATE TABLE IF NOT EXISTS `firms` (
   `firm_created_at` int(11) NOT NULL,
   `firm_updated_at` int(11) NOT NULL,
   PRIMARY KEY (`firm_id`),
-  UNIQUE KEY `uq_firm_name` (`firm_name`),
+  `firm_active_name` varchar(64) GENERATED ALWAYS AS (IF(firm_status<>3,firm_name,NULL)) STORED,
+  `firm_active_abbrev` varchar(8) GENERATED ALWAYS AS (IF(firm_status<>3,firm_abbrev,NULL)) STORED,
+  `firm_active_owner` int GENERATED ALWAYS AS (IF(firm_status<>3,firm_owner_char_id,NULL)) STORED,
+  UNIQUE KEY `uq_firm_name` (`firm_active_name`),
+  UNIQUE KEY `uq_firm_abbrev` (`firm_active_abbrev`),
+  UNIQUE KEY `uq_firm_owner` (`firm_active_owner`),
   KEY `idx_firm_owner` (`firm_owner_char_id`),
   KEY `idx_firm_field_status` (`firm_field`,`firm_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1291,6 +1300,7 @@ CREATE TABLE IF NOT EXISTS `firm_members` (
   `firm_last_active` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`firm_member_id`),
   UNIQUE KEY `uq_firm_character` (`firm_id`,`character_id`),
+  UNIQUE KEY `uq_character_one_firm` (`character_id`),
   KEY `idx_character_active_firm` (`character_id`,`firm_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -2413,11 +2423,11 @@ CREATE TABLE IF NOT EXISTS `server` (
   `server_song_url` varchar(255) NOT NULL DEFAULT 'https://gtalegacy.com/server/audio/welcome.mp3',
   `police_fines_total` int(11) NOT NULL DEFAULT 0,
   `registration_ucp` tinyint(4) NOT NULL DEFAULT 1,
-  `admin_motd_1` varchar(96) DEFAULT NULL,
-  `admin_motd_2` varchar(96) DEFAULT NULL,
-  `admin_motd_3` varchar(96) DEFAULT NULL,
-  `admin_motd_editor` varchar(24) DEFAULT NULL,
-  `admin_motd_edit_time` int(11) DEFAULT NULL,
+  `admin_motd_1` varchar(96) NOT NULL DEFAULT '',
+  `admin_motd_2` varchar(96) NOT NULL DEFAULT '',
+  `admin_motd_3` varchar(96) NOT NULL DEFAULT '',
+  `admin_motd_editor` varchar(24) NOT NULL DEFAULT '',
+  `admin_motd_edit_time` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`server_index`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -2878,7 +2888,7 @@ CREATE TABLE IF NOT EXISTS `player_skins` (
 
 -- Global server settings row (the gamemode reads this on start-up).
 INSERT INTO `server` (`server_propertytax`, `server_index`, `server_slots_jackpot`, `server_slots_motd_1`, `server_slots_motd_2`, `server_slots_motd_3`, `server_motd_editor`, `server_motd_edit_time`, `server_admin_hex`, `server_helper_hex`, `server_chopshop_factionid`, `server_chopshop_collect`, `police_kiosk_x`, `police_kiosk_y`, `police_kiosk_z`, `police_kiosk_vw`, `police_kiosk_int`, `medic_kiosk_x`, `medic_kiosk_y`, `medic_kiosk_z`, `medic_kiosk_vw`, `medic_kiosk_int`, `dea_kiosk_x`, `dea_kiosk_y`, `dea_kiosk_z`, `dea_kiosk_vw`, `dea_kiosk_int`, `sheriff_kiosk_x`, `sheriff_kiosk_y`, `sheriff_kiosk_z`, `sheriff_kiosk_vw`, `sheriff_kiosk_int`, `server_song_url`, `police_fines_total`, `registration_ucp`, `admin_motd_1`, `admin_motd_2`, `admin_motd_3`, `admin_motd_editor`, `admin_motd_edit_time`) VALUES
-	(0, 0, 0, 'Welcome to OpenRP Framework!', 'Edit this message with the MOTD admin command.', '', '', 0, -175619841, -2015655681, -1, 1500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, NULL, NULL, NULL, NULL, NULL);
+	(0, 0, 0, 'Welcome to OpenRP Framework!', 'Edit this message with the MOTD admin command.', '', '', 0, -175619841, -2015655681, -1, 1500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 1, '', '', '', '', 0);
 
 -- Default factions. SQL ids 1 and 2 are referenced by FACTION_ID_SAPD / FACTION_ID_FDSA in gamemodes/gamemode.pwn.
 -- faction_type: 0 = law enforcement, 3 = EMS/fire (see FACTION_TYPE_* in gamemode.pwn)
@@ -2898,3 +2908,927 @@ INSERT INTO `faction_armory_types` (`armory_type_id`, `faction_id`, `type_name`,
 
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
+
+-- BEGIN GENERATED RUNTIME CONFIGURATION
+-- Runtime configuration baseline. Import this complete file with an administrative account.
+-- DDL and firm routines are maintained here; the generator updates defaults/journals.
+CREATE TABLE IF NOT EXISTS runtime_config_state (
+    id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+    revision INT UNSIGNED NOT NULL DEFAULT 1,
+    applied_revision INT UNSIGNED NOT NULL DEFAULT 0,
+    last_heartbeat INT UNSIGNED NOT NULL DEFAULT 0,
+    last_error VARCHAR(512) NOT NULL DEFAULT '',
+    schema_version INT UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT IGNORE INTO runtime_config_state(id) VALUES (1);
+
+CREATE TABLE IF NOT EXISTS runtime_config_settings (
+    setting_key VARCHAR(80) NOT NULL PRIMARY KEY,
+    value_type VARCHAR(12) NOT NULL,
+    number_value DOUBLE NOT NULL DEFAULT 0,
+    text_value VARCHAR(256) NOT NULL DEFAULT '',
+    revision INT UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS runtime_locations (
+    location_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    location_key VARCHAR(64) NOT NULL UNIQUE,
+    category VARCHAR(24) NOT NULL,
+    label VARCHAR(64) NOT NULL,
+    x DOUBLE NOT NULL DEFAULT 0,
+    y DOUBLE NOT NULL DEFAULT 0,
+    z DOUBLE NOT NULL DEFAULT 0,
+    angle DOUBLE NOT NULL DEFAULT 0,
+    interior SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    virtual_world INT UNSIGNED NOT NULL DEFAULT 0,
+    radius DOUBLE NOT NULL DEFAULT 5,
+    enabled TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    gps_enabled TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    model_id INT UNSIGNED NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 0,
+    revision INT UNSIGNED NOT NULL DEFAULT 1,
+    INDEX location_category(category, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS runtime_location_vertices (
+    location_id INT UNSIGNED NOT NULL,
+    vertex_index SMALLINT UNSIGNED NOT NULL,
+    x DOUBLE NOT NULL,
+    y DOUBLE NOT NULL,
+    PRIMARY KEY(location_id, vertex_index),
+    FOREIGN KEY(location_id) REFERENCES runtime_locations(location_id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS runtime_vehicle_models (
+    model_id SMALLINT UNSIGNED NOT NULL PRIMARY KEY,
+    cargo_slots TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    catalogue_price INT UNSIGNED NULL,
+    enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    revision INT UNSIGNED NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS runtime_faction_squads (
+    squad_id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+    faction_id INT NOT NULL,
+    squad_name VARCHAR(48) NOT NULL,
+    role_flags INT UNSIGNED NOT NULL DEFAULT 0,
+    enabled TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    revision INT UNSIGNED NOT NULL DEFAULT 1,
+    INDEX faction_squads(faction_id, enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS runtime_config_audit (
+    audit_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    revision INT UNSIGNED NOT NULL UNIQUE,
+    account_id INT NOT NULL,
+    account_name VARCHAR(24) NOT NULL,
+    source VARCHAR(32) NOT NULL,
+    description VARCHAR(256) NOT NULL,
+    before_json LONGTEXT NOT NULL,
+    after_json LONGTEXT NOT NULL,
+    created_at INT UNSIGNED NOT NULL,
+    CHECK(JSON_VALID(before_json)),
+    CHECK(JSON_VALID(after_json))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS runtime_entity_changes (
+    change_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    revision INT UNSIGNED NOT NULL,
+    entity_type VARCHAR(32) NOT NULL,
+    entity_id INT NOT NULL,
+    operation VARCHAR(12) NOT NULL,
+    INDEX entity_revision(revision, change_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Generated defaults. INSERT IGNORE preserves existing server configuration.
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('dmv.fee','integer',250,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('vehicles.rental_fee','integer',125,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('licenses.pilot_fee','integer',1500,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('vehicles.impound_fee','integer',2500,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('identity.namechange_fee','integer',15000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.creation_fee','integer',50000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.mechanic_fee','integer',15000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.security_fee','integer',25000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.lawyer_fee','integer',10000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.transit_fee','integer',20000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.logistics_fee','integer',20000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.media_fee','integer',0,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.usedcars_fee','integer',35000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.realestate_fee','integer',35000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.member_slots','integer',10,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.vehicle_slots','integer',15,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('paycheck.base','integer',300,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('paycheck.minimum_minutes','integer',40,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('paycheck.interval_minutes','integer',60,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('tolls.base_fee','integer',150,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('tolls.cargo_slot_fee','integer',10,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('medical.surgery_fee','integer',50,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('medical.bandage_fee','integer',15,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('medical.bill_percent','number',1,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('medical.bill_min','integer',250,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('medical.bill_max','integer',2500,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('repairs.bodykit_fee','integer',150,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('repairs.engine_fee','integer',200,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('repairs.bodywork_min','integer',1000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('repairs.bodywork_percent','integer',5,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('repairs.engine_min','integer',1500,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('repairs.modshop_fee','integer',25,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('properties.wardrobe_fee','integer',750,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('vehicles.wholesale_percent','integer',70,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('vehicles.used_sale_min_percent','integer',30,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('vehicles.used_sale_max_percent','integer',100,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('vehicles.used_alert_percent','integer',100,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('firms.lawyer_minute_rate','integer',100,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('properties.resale_min_percent','integer',100,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('fuel.station_purchase_fee','integer',250000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.crate_pay','integer',40,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.distance_pay','number',0.03,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.load_range','number',15,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.pile_range','number',4,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.rear_range','number',3,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.drop_range','number',6,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.unload_range','number',30,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.minimum_distance','number',300,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('trucker.checkpoint_size','number',6,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.deliveries','integer',5,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.pay_min','integer',120,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.pay_max','integer',200,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.bonus','integer',350,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.vehicle_range','number',4,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.checkpoint_size','number',3,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.min_x','number',-1213.91,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.min_y','number',-768.027,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.max_x','number',2997.06,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('pizza.max_y','number',596.349,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('burglary.cooldown_seconds','integer',900,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('properties.entry_cooldown_seconds','integer',1800,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('police.breathalyzer_cooldown','integer',120,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('police.metal_cooldown_ms','integer',5000,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('voice.line_cooldown_seconds','integer',10,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('identity.name','text',0,'OpenRP Framework');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('identity.mode','text',0,'OpenRP Framework v0.1.0');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('identity.map','text',0,'San Andreas');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('identity.website','text',0,'https://example.com');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('weather.automatic','integer',1,'');
+INSERT IGNORE INTO runtime_config_settings(setting_key,value_type,number_value,text_value) VALUES('weather.fixed_id','integer',10,'');
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('dmv','service','Department of Motor Vehicles',0,0,0,0,0,0,5,0,1,1581,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('admin_jail','service','Admin jail',0,0,0,0,6,1000,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('staff_room','service','Staff meeting room',0,0,0,0,6,1001,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('prison_release','service','Prison release',0,0,0,0,0,0,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('sapd_desk','service','Police Department',0,0,0,0,0,0,5,0,1,1247,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('administration_desk','service','Administration Building',0,0,0,0,0,0,5,0,1,1239,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('hospital','service','Hospital',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('trucker_depot','service','Delivery Depot',0,0,0,0,0,0,15,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_depot','service','Garbage Depot',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('scrapyard_land','service','Car Scrapyard',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('scrapyard_boat','service','Boat Scrapyard',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('scrapyard_air','service','Plane Scrapyard',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('chopshop','service','Chop Shop',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('advert_agency','service','Advertisement Agency',0,0,0,0,0,0,5,0,1,19807,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('impound','service','Vehicle Impound',1070.2982,-1762.1105,13.3904,0,0,0,30,1,1,1247,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('gym_ls','service','East Los Santos Gym',0,0,-30,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('gym_sf','service','San Fierro Gym',0,0,-30,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('gym_lv','service','Las Venturas Gym',0,0,-30,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('gym_ganton','service','Ganton Gym',0,0,-30,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('gym_beach','service','Beach Gym',0,0,-30,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('public_spawn','spawn','Public spawn',0,0,0,0,0,0,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('prison_cell_1','prison_cell','C01',0,0,0,0,0,1,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('prison_cell_2','prison_cell','C02',0,0,0,0,0,1,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('prison_cell_3','prison_cell','C03',0,0,0,0,0,1,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('prison_cell_4','prison_cell','C04',0,0,0,0,0,1,5,0,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garage_1','garage','Garage 1',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garage_2','garage','Garage 2',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garage_3','garage','Garage 3',0,0,0,0,0,0,5,0,1,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_1','garbage','Collection point 1',255.6008,20.495,2.4475,0,0,0,3,1,0,0,0);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_2','garbage','Collection point 2',215.0402,-5.6737,2.5371,0,0,0,3,1,0,0,1);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_3','garbage','Collection point 3',204.5641,-33.1239,1.5781,0,0,0,3,1,0,0,2);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_4','garbage','Collection point 4',162.347,-10.7469,1.5781,0,0,0,3,1,0,0,3);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_5','garbage','Collection point 5',182.7723,-91.8026,1.5427,0,0,0,3,1,0,0,4);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_6','garbage','Collection point 6',175.6007,-118.9284,1.5503,0,0,0,3,1,0,0,5);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_7','garbage','Collection point 7',210.9835,-163.2349,1.5781,0,0,0,3,1,0,0,6);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_8','garbage','Collection point 8',215.6126,-181.7471,1.5781,0,0,0,3,1,0,0,7);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_9','garbage','Collection point 9',121.1602,-154.7676,1.5781,0,0,0,3,1,0,0,8);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_10','garbage','Collection point 10',199.9074,-325.5791,1.7051,0,0,0,3,1,0,0,9);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_11','garbage','Collection point 11',654.3475,-439.0498,16.3359,0,0,0,3,1,0,0,10);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_12','garbage','Collection point 12',644.6218,-511.1986,16.3359,0,0,0,3,1,0,0,11);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_13','garbage','Collection point 13',661.957,-541.752,16.3359,0,0,0,3,1,0,0,12);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_14','garbage','Collection point 14',662.0895,-623.0569,16.3359,0,0,0,3,1,0,0,13);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_15','garbage','Collection point 15',740.5894,-539.731,16.3359,0,0,0,3,1,0,0,14);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_16','garbage','Collection point 16',797.1172,-520.6215,16.3359,0,0,0,3,1,0,0,15);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_17','garbage','Collection point 17',835.7222,-599.8776,16.3359,0,0,0,3,1,0,0,16);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_18','garbage','Collection point 18',1276.0763,188.9603,19.6586,0,0,0,3,1,0,0,17);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_19','garbage','Collection point 19',1299.7666,214.5239,19.5547,0,0,0,3,1,0,0,18);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_20','garbage','Collection point 20',1244.8755,246.6298,19.5547,0,0,0,3,1,0,0,19);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_21','garbage','Collection point 21',1293.5852,345.7444,19.5547,0,0,0,3,1,0,0,20);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_22','garbage','Collection point 22',1383.8431,293.5231,19.5547,0,0,0,3,1,0,0,21);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_23','garbage','Collection point 23',1392.2594,210.4175,19.4574,0,0,0,3,1,0,0,22);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_24','garbage','Collection point 24',2214.2256,52.6979,26.4844,0,0,0,3,1,0,0,23);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_25','garbage','Collection point 25',2236.6643,69.7013,26.4844,0,0,0,3,1,0,0,24);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_26','garbage','Collection point 26',2283.2935,101.0556,26.4844,0,0,0,3,1,0,0,25);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_27','garbage','Collection point 27',2323.76,59.8555,26.4922,0,0,0,3,1,0,0,26);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_28','garbage','Collection point 28',2361.855,-37.9262,26.4844,0,0,0,3,1,0,0,27);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_29','garbage','Collection point 29',2417.0471,51.0469,26.4844,0,0,0,3,1,0,0,28);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_30','garbage','Collection point 30',2543.875,27.6838,26.4844,0,0,0,3,1,0,0,29);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_31','garbage','Collection point 31',2334.4702,-52.8211,26.4844,0,0,0,3,1,0,0,30);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('garbage_32','garbage','Collection point 32',2275.9382,-69.1702,26.5751,0,0,0,3,1,0,0,31);
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('fishing_1','fishing','Fishing area 1',2198.52,-134.17,0,0,0,0,5,1,0,0,0);
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,0,2198.52,-134.17 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,1,2261.93,-168.41 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,2,2289.64,-253.11 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,3,2273.41,-262.94 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,4,2158.63,-257.8 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,5,2050.75,-259.49 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,6,1959.17,-281.53 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,7,1907.45,-255.63 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,8,1889.56,-225.47 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,9,1887.47,-109.2 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,10,1949.46,-15.68 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,11,2028.52,-14.46 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,12,2136.11,-22.56 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,13,2133.91,-80.19 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,14,2157.98,-117.9 FROM runtime_locations WHERE location_key='fishing_1';
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('fishing_2','fishing','Fishing area 2',-1622.56,1380.55,0,0,0,0,5,1,0,0,0);
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,0,-1622.56,1380.55 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,1,-1615.35,1389.17 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,2,-1618.07,1404.81 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,3,-1619.05,1416.39 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,4,-1633.08,1431.09 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,5,-1644.49,1432.32 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,6,-1657.95,1434.25 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,7,-1659.04,1436.64 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,8,-1644.89,1434.41 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,9,-1633.46,1434.56 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,10,-1616.03,1417.3 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,11,-1615.91,1405.47 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,12,-1611.96,1389.02 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,13,-1620.83,1379.85 FROM runtime_locations WHERE location_key='fishing_2';
+INSERT IGNORE INTO runtime_locations(location_key,category,label,x,y,z,angle,interior,virtual_world,radius,enabled,gps_enabled,model_id,sort_order) VALUES('fishing_3','fishing','Fishing area 3',-642.99,1286.85,0,0,0,0,5,1,0,0,0);
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,0,-642.99,1286.85 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,1,-654.32,1311.75 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,2,-635.92,1342.86 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,3,-631.12,1342.2 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,4,-640.33,1327.54 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,5,-648.79,1313.63 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,6,-623.97,1321.82 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,7,-621.75,1318.33 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,8,-646.03,1307.71 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,9,-639.78,1293.19 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,10,-616.58,1300.96 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,11,-615.34,1296.62 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,12,-635.98,1287.67 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,13,-628.69,1272.99 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,14,-614.23,1259.35 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,15,-615.41,1257.04 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_location_vertices(location_id,vertex_index,x,y) SELECT location_id,16,-631.17,1270.83 FROM runtime_locations WHERE location_key='fishing_3';
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(400,0,14000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(401,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(402,0,42000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(403,0,80000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(404,0,6500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(405,0,11500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(406,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(407,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(408,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(409,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(410,0,3500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(411,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(412,0,9000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(413,8,15000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(414,12,30000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(415,0,220000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(416,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(417,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(418,0,7000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(419,0,7000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(420,0,25000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(421,0,10500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(422,0,12000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(423,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(424,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(425,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(426,0,12000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(427,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(428,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(429,0,160000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(430,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(431,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(432,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(433,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(434,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(435,30,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(436,0,4200);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(437,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(438,0,15000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(439,0,13500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(440,8,22000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(441,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(442,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(443,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(444,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(445,0,21000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(446,0,150000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(447,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(448,0,4000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(449,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(450,30,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(451,0,300000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(452,0,200000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(453,0,50000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(454,0,250000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(455,0,42000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(456,16,65000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(457,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(458,0,6000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(459,0,18000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(460,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(461,0,89000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(462,0,2250);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(463,0,30000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(464,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(465,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(466,0,18000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(467,0,15500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(468,0,25000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(469,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(470,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(471,0,27000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(472,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(473,0,30000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(474,0,12000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(475,0,28000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(476,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(477,0,52000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(478,0,10000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(479,0,7500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(480,0,48000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(481,0,550);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(482,6,26000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(483,0,18000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(484,0,280000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(485,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(486,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(487,0,1770000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(488,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(489,0,16000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(490,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(491,0,10000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(492,0,13500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(493,0,300000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(494,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(495,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(496,0,12000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(497,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(498,10,48000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(499,14,55000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(500,0,19000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(501,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(502,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(503,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(504,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(505,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(506,0,190000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(507,0,16500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(508,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(509,0,400);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(510,0,1500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(511,0,1800000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(512,0,1550000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(513,0,1510000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(514,0,90000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(515,0,95000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(516,0,14000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(517,0,19000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(518,0,32000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(519,0,1800000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(520,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(521,0,84500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(522,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(523,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(524,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(525,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(526,0,8000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(527,0,9500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(528,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(529,0,8000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(530,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(531,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(532,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(533,0,16500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(534,0,15000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(535,0,16000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(536,0,19500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(537,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(538,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(539,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(540,0,11500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(541,0,250000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(542,0,18000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(543,0,9000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(544,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(545,0,52000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(546,0,11000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(547,0,8500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(548,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(549,0,30000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(550,0,10000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(551,0,15000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(552,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(553,0,2100000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(554,0,28000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(555,0,120000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(556,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(557,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(558,0,42000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(559,0,45000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(560,0,350000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(561,0,140000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(562,0,320000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(563,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(564,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(565,0,38000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(566,0,15600);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(567,0,22000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(568,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(569,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(570,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(571,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(572,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(573,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(574,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(575,0,17500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(576,0,19000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(577,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(578,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(579,0,27000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(580,0,26000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(581,0,56500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(582,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(583,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(584,30,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(585,0,12000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(586,0,16500);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(587,0,22000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(588,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(589,0,15000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(590,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(591,30,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(592,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(593,0,1550000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(594,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(595,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(596,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(597,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(598,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(599,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(600,0,9000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(601,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(602,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(603,0,46000);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(604,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(605,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(606,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(607,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(608,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(609,10,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(610,0,NULL);
+INSERT IGNORE INTO runtime_vehicle_models(model_id,cargo_slots,catalogue_price) VALUES(611,0,NULL);
+INSERT IGNORE INTO runtime_faction_squads(squad_id,faction_id,squad_name,role_flags) VALUES(10,1,'SWAT',1);
+INSERT IGNORE INTO runtime_faction_squads(squad_id,faction_id,squad_name,role_flags) VALUES(11,1,'Traffic',0);
+INSERT IGNORE INTO runtime_faction_squads(squad_id,faction_id,squad_name,role_flags) VALUES(12,1,'Detectives',2);
+INSERT IGNORE INTO runtime_faction_squads(squad_id,faction_id,squad_name,role_flags) VALUES(20,2,'Fire',0);
+INSERT IGNORE INTO runtime_faction_squads(squad_id,faction_id,squad_name,role_flags) VALUES(21,2,'EMS',0);
+INSERT IGNORE INTO runtime_faction_squads(squad_id,faction_id,squad_name,role_flags) VALUES(22,2,'Rescue',0);
+
+-- Generated entity change journal. Requires MariaDB TRIGGER privilege.
+DELIMITER //
+DROP TRIGGER IF EXISTS `orp_runtime_repair_refuel_insert`//
+CREATE TRIGGER `orp_runtime_repair_refuel_insert` AFTER INSERT ON `rprf_points` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'repair_refuel',NEW.`rprf_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT repair_refuel from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','repair_refuel','id',NEW.`rprf_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','repair_refuel','id',NEW.`rprf_id`,'record',JSON_OBJECT('rprf_desc',COALESCE(NEW.`rprf_desc`,''),'rprf_pos_x',COALESCE(NEW.`rprf_pos_x`,0),'rprf_pos_y',COALESCE(NEW.`rprf_pos_y`,0),'rprf_pos_z',COALESCE(NEW.`rprf_pos_z`,0),'rprf_type',COALESCE(NEW.`rprf_type`,0),'rprf_faction_type',COALESCE(NEW.`rprf_faction_type`,0),'rprf_hidden',COALESCE(NEW.`rprf_hidden`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_repair_refuel_update`//
+CREATE TRIGGER `orp_runtime_repair_refuel_update` AFTER UPDATE ON `rprf_points` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`rprf_desc` <=> OLD.`rprf_desc`) OR NOT (NEW.`rprf_pos_x` <=> OLD.`rprf_pos_x`) OR NOT (NEW.`rprf_pos_y` <=> OLD.`rprf_pos_y`) OR NOT (NEW.`rprf_pos_z` <=> OLD.`rprf_pos_z`) OR NOT (NEW.`rprf_type` <=> OLD.`rprf_type`) OR NOT (NEW.`rprf_faction_type` <=> OLD.`rprf_faction_type`) OR NOT (NEW.`rprf_hidden` <=> OLD.`rprf_hidden`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'repair_refuel',NEW.`rprf_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE repair_refuel from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','repair_refuel','id',OLD.`rprf_id`,'record',JSON_OBJECT('rprf_desc',COALESCE(OLD.`rprf_desc`,''),'rprf_pos_x',COALESCE(OLD.`rprf_pos_x`,0),'rprf_pos_y',COALESCE(OLD.`rprf_pos_y`,0),'rprf_pos_z',COALESCE(OLD.`rprf_pos_z`,0),'rprf_type',COALESCE(OLD.`rprf_type`,0),'rprf_faction_type',COALESCE(OLD.`rprf_faction_type`,0),'rprf_hidden',COALESCE(OLD.`rprf_hidden`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','repair_refuel','id',NEW.`rprf_id`,'record',JSON_OBJECT('rprf_desc',COALESCE(NEW.`rprf_desc`,''),'rprf_pos_x',COALESCE(NEW.`rprf_pos_x`,0),'rprf_pos_y',COALESCE(NEW.`rprf_pos_y`,0),'rprf_pos_z',COALESCE(NEW.`rprf_pos_z`,0),'rprf_type',COALESCE(NEW.`rprf_type`,0),'rprf_faction_type',COALESCE(NEW.`rprf_faction_type`,0),'rprf_hidden',COALESCE(NEW.`rprf_hidden`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_repair_refuel_delete`//
+CREATE TRIGGER `orp_runtime_repair_refuel_delete` AFTER DELETE ON `rprf_points` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'repair_refuel',OLD.`rprf_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE repair_refuel from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','repair_refuel','id',OLD.`rprf_id`,'record',JSON_OBJECT('rprf_desc',COALESCE(OLD.`rprf_desc`,''),'rprf_pos_x',COALESCE(OLD.`rprf_pos_x`,0),'rprf_pos_y',COALESCE(OLD.`rprf_pos_y`,0),'rprf_pos_z',COALESCE(OLD.`rprf_pos_z`,0),'rprf_type',COALESCE(OLD.`rprf_type`,0),'rprf_faction_type',COALESCE(OLD.`rprf_faction_type`,0),'rprf_hidden',COALESCE(OLD.`rprf_hidden`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','repair_refuel','id',OLD.`rprf_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_faction_skin_insert`//
+CREATE TRIGGER `orp_runtime_faction_skin_insert` AFTER INSERT ON `faction_skins` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'faction_skin',NEW.`faction_skin_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT faction_skin from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','faction_skin','id',NEW.`faction_skin_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','faction_skin','id',NEW.`faction_skin_id`,'record',JSON_OBJECT('faction_skin_factionid',COALESCE(NEW.`faction_skin_factionid`,0),'faction_skin_skinid',COALESCE(NEW.`faction_skin_skinid`,0),'faction_skin_tier',COALESCE(NEW.`faction_skin_tier`,0),'faction_skin_squad',COALESCE(NEW.`faction_skin_squad`,0),'faction_skin_armory_type',COALESCE(NEW.`faction_skin_armory_type`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_faction_skin_update`//
+CREATE TRIGGER `orp_runtime_faction_skin_update` AFTER UPDATE ON `faction_skins` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`faction_skin_factionid` <=> OLD.`faction_skin_factionid`) OR NOT (NEW.`faction_skin_skinid` <=> OLD.`faction_skin_skinid`) OR NOT (NEW.`faction_skin_tier` <=> OLD.`faction_skin_tier`) OR NOT (NEW.`faction_skin_squad` <=> OLD.`faction_skin_squad`) OR NOT (NEW.`faction_skin_armory_type` <=> OLD.`faction_skin_armory_type`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'faction_skin',NEW.`faction_skin_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE faction_skin from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','faction_skin','id',OLD.`faction_skin_id`,'record',JSON_OBJECT('faction_skin_factionid',COALESCE(OLD.`faction_skin_factionid`,0),'faction_skin_skinid',COALESCE(OLD.`faction_skin_skinid`,0),'faction_skin_tier',COALESCE(OLD.`faction_skin_tier`,0),'faction_skin_squad',COALESCE(OLD.`faction_skin_squad`,0),'faction_skin_armory_type',COALESCE(OLD.`faction_skin_armory_type`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','faction_skin','id',NEW.`faction_skin_id`,'record',JSON_OBJECT('faction_skin_factionid',COALESCE(NEW.`faction_skin_factionid`,0),'faction_skin_skinid',COALESCE(NEW.`faction_skin_skinid`,0),'faction_skin_tier',COALESCE(NEW.`faction_skin_tier`,0),'faction_skin_squad',COALESCE(NEW.`faction_skin_squad`,0),'faction_skin_armory_type',COALESCE(NEW.`faction_skin_armory_type`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_faction_skin_delete`//
+CREATE TRIGGER `orp_runtime_faction_skin_delete` AFTER DELETE ON `faction_skins` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'faction_skin',OLD.`faction_skin_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE faction_skin from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','faction_skin','id',OLD.`faction_skin_id`,'record',JSON_OBJECT('faction_skin_factionid',COALESCE(OLD.`faction_skin_factionid`,0),'faction_skin_skinid',COALESCE(OLD.`faction_skin_skinid`,0),'faction_skin_tier',COALESCE(OLD.`faction_skin_tier`,0),'faction_skin_squad',COALESCE(OLD.`faction_skin_squad`,0),'faction_skin_armory_type',COALESCE(OLD.`faction_skin_armory_type`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','faction_skin','id',OLD.`faction_skin_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_atm_insert`//
+CREATE TRIGGER `orp_runtime_atm_insert` AFTER INSERT ON `atms` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'atm',NEW.`id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT atm from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','atm','id',NEW.`id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','atm','id',NEW.`id`,'record',JSON_OBJECT('pos_x',COALESCE(NEW.`pos_x`,0),'pos_y',COALESCE(NEW.`pos_y`,0),'pos_z',COALESCE(NEW.`pos_z`,0),'angle',COALESCE(NEW.`angle`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_atm_update`//
+CREATE TRIGGER `orp_runtime_atm_update` AFTER UPDATE ON `atms` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`pos_x` <=> OLD.`pos_x`) OR NOT (NEW.`pos_y` <=> OLD.`pos_y`) OR NOT (NEW.`pos_z` <=> OLD.`pos_z`) OR NOT (NEW.`angle` <=> OLD.`angle`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'atm',NEW.`id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE atm from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','atm','id',OLD.`id`,'record',JSON_OBJECT('pos_x',COALESCE(OLD.`pos_x`,0),'pos_y',COALESCE(OLD.`pos_y`,0),'pos_z',COALESCE(OLD.`pos_z`,0),'angle',COALESCE(OLD.`angle`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','atm','id',NEW.`id`,'record',JSON_OBJECT('pos_x',COALESCE(NEW.`pos_x`,0),'pos_y',COALESCE(NEW.`pos_y`,0),'pos_z',COALESCE(NEW.`pos_z`,0),'angle',COALESCE(NEW.`angle`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_atm_delete`//
+CREATE TRIGGER `orp_runtime_atm_delete` AFTER DELETE ON `atms` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'atm',OLD.`id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE atm from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','atm','id',OLD.`id`,'record',JSON_OBJECT('pos_x',COALESCE(OLD.`pos_x`,0),'pos_y',COALESCE(OLD.`pos_y`,0),'pos_z',COALESCE(OLD.`pos_z`,0),'angle',COALESCE(OLD.`angle`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','atm','id',OLD.`id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_armory_type_insert`//
+CREATE TRIGGER `orp_runtime_armory_type_insert` AFTER INSERT ON `faction_armory_types` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'armory_type',NEW.`armory_type_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT armory_type from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_type','id',NEW.`armory_type_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_type','id',NEW.`armory_type_id`,'record',JSON_OBJECT('faction_id',COALESCE(NEW.`faction_id`,0),'type_name',COALESCE(NEW.`type_name`,''),'type_enabled',COALESCE(NEW.`type_enabled`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_armory_type_update`//
+CREATE TRIGGER `orp_runtime_armory_type_update` AFTER UPDATE ON `faction_armory_types` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`faction_id` <=> OLD.`faction_id`) OR NOT (NEW.`type_name` <=> OLD.`type_name`) OR NOT (NEW.`type_enabled` <=> OLD.`type_enabled`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'armory_type',NEW.`armory_type_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE armory_type from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_type','id',OLD.`armory_type_id`,'record',JSON_OBJECT('faction_id',COALESCE(OLD.`faction_id`,0),'type_name',COALESCE(OLD.`type_name`,''),'type_enabled',COALESCE(OLD.`type_enabled`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_type','id',NEW.`armory_type_id`,'record',JSON_OBJECT('faction_id',COALESCE(NEW.`faction_id`,0),'type_name',COALESCE(NEW.`type_name`,''),'type_enabled',COALESCE(NEW.`type_enabled`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_armory_type_delete`//
+CREATE TRIGGER `orp_runtime_armory_type_delete` AFTER DELETE ON `faction_armory_types` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'armory_type',OLD.`armory_type_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE armory_type from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_type','id',OLD.`armory_type_id`,'record',JSON_OBJECT('faction_id',COALESCE(OLD.`faction_id`,0),'type_name',COALESCE(OLD.`type_name`,''),'type_enabled',COALESCE(OLD.`type_enabled`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_type','id',OLD.`armory_type_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_locker_insert`//
+CREATE TRIGGER `orp_runtime_locker_insert` AFTER INSERT ON `faction_armories` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'locker',NEW.`armory_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT locker from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','locker','id',NEW.`armory_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','locker','id',NEW.`armory_id`,'record',JSON_OBJECT('faction_id',COALESCE(NEW.`faction_id`,0),'armory_type_id',COALESCE(NEW.`armory_type_id`,0),'armory_name',COALESCE(NEW.`armory_name`,''),'armory_desc',COALESCE(NEW.`armory_desc`,''),'armory_x',COALESCE(NEW.`armory_x`,0),'armory_y',COALESCE(NEW.`armory_y`,0),'armory_z',COALESCE(NEW.`armory_z`,0),'armory_int',COALESCE(NEW.`armory_int`,0),'armory_vw',COALESCE(NEW.`armory_vw`,0),'armory_squad',COALESCE(NEW.`armory_squad`,0),'armory_enabled',COALESCE(NEW.`armory_enabled`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_locker_update`//
+CREATE TRIGGER `orp_runtime_locker_update` AFTER UPDATE ON `faction_armories` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`faction_id` <=> OLD.`faction_id`) OR NOT (NEW.`armory_type_id` <=> OLD.`armory_type_id`) OR NOT (NEW.`armory_name` <=> OLD.`armory_name`) OR NOT (NEW.`armory_desc` <=> OLD.`armory_desc`) OR NOT (NEW.`armory_x` <=> OLD.`armory_x`) OR NOT (NEW.`armory_y` <=> OLD.`armory_y`) OR NOT (NEW.`armory_z` <=> OLD.`armory_z`) OR NOT (NEW.`armory_int` <=> OLD.`armory_int`) OR NOT (NEW.`armory_vw` <=> OLD.`armory_vw`) OR NOT (NEW.`armory_squad` <=> OLD.`armory_squad`) OR NOT (NEW.`armory_enabled` <=> OLD.`armory_enabled`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'locker',NEW.`armory_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE locker from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','locker','id',OLD.`armory_id`,'record',JSON_OBJECT('faction_id',COALESCE(OLD.`faction_id`,0),'armory_type_id',COALESCE(OLD.`armory_type_id`,0),'armory_name',COALESCE(OLD.`armory_name`,''),'armory_desc',COALESCE(OLD.`armory_desc`,''),'armory_x',COALESCE(OLD.`armory_x`,0),'armory_y',COALESCE(OLD.`armory_y`,0),'armory_z',COALESCE(OLD.`armory_z`,0),'armory_int',COALESCE(OLD.`armory_int`,0),'armory_vw',COALESCE(OLD.`armory_vw`,0),'armory_squad',COALESCE(OLD.`armory_squad`,0),'armory_enabled',COALESCE(OLD.`armory_enabled`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','locker','id',NEW.`armory_id`,'record',JSON_OBJECT('faction_id',COALESCE(NEW.`faction_id`,0),'armory_type_id',COALESCE(NEW.`armory_type_id`,0),'armory_name',COALESCE(NEW.`armory_name`,''),'armory_desc',COALESCE(NEW.`armory_desc`,''),'armory_x',COALESCE(NEW.`armory_x`,0),'armory_y',COALESCE(NEW.`armory_y`,0),'armory_z',COALESCE(NEW.`armory_z`,0),'armory_int',COALESCE(NEW.`armory_int`,0),'armory_vw',COALESCE(NEW.`armory_vw`,0),'armory_squad',COALESCE(NEW.`armory_squad`,0),'armory_enabled',COALESCE(NEW.`armory_enabled`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_locker_delete`//
+CREATE TRIGGER `orp_runtime_locker_delete` AFTER DELETE ON `faction_armories` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'locker',OLD.`armory_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE locker from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','locker','id',OLD.`armory_id`,'record',JSON_OBJECT('faction_id',COALESCE(OLD.`faction_id`,0),'armory_type_id',COALESCE(OLD.`armory_type_id`,0),'armory_name',COALESCE(OLD.`armory_name`,''),'armory_desc',COALESCE(OLD.`armory_desc`,''),'armory_x',COALESCE(OLD.`armory_x`,0),'armory_y',COALESCE(OLD.`armory_y`,0),'armory_z',COALESCE(OLD.`armory_z`,0),'armory_int',COALESCE(OLD.`armory_int`,0),'armory_vw',COALESCE(OLD.`armory_vw`,0),'armory_squad',COALESCE(OLD.`armory_squad`,0),'armory_enabled',COALESCE(OLD.`armory_enabled`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','locker','id',OLD.`armory_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_armory_weapon_insert`//
+CREATE TRIGGER `orp_runtime_armory_weapon_insert` AFTER INSERT ON `faction_armory_weapons` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'armory_weapon',NEW.`armory_weapon_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT armory_weapon from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_weapon','id',NEW.`armory_weapon_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_weapon','id',NEW.`armory_weapon_id`,'record',JSON_OBJECT('faction_id',COALESCE(NEW.`faction_id`,0),'armory_type_id',COALESCE(NEW.`armory_type_id`,0),'weapon_id',COALESCE(NEW.`weapon_id`,0),'weapon_ammo',COALESCE(NEW.`weapon_ammo`,0),'tier_limit',COALESCE(NEW.`tier_limit`,0),'squad_id',COALESCE(NEW.`squad_id`,0),'off_duty_allowed',COALESCE(NEW.`off_duty_allowed`,0),'weapon_enabled',COALESCE(NEW.`weapon_enabled`,0),'sort_order',COALESCE(NEW.`sort_order`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_armory_weapon_update`//
+CREATE TRIGGER `orp_runtime_armory_weapon_update` AFTER UPDATE ON `faction_armory_weapons` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`faction_id` <=> OLD.`faction_id`) OR NOT (NEW.`armory_type_id` <=> OLD.`armory_type_id`) OR NOT (NEW.`weapon_id` <=> OLD.`weapon_id`) OR NOT (NEW.`weapon_ammo` <=> OLD.`weapon_ammo`) OR NOT (NEW.`tier_limit` <=> OLD.`tier_limit`) OR NOT (NEW.`squad_id` <=> OLD.`squad_id`) OR NOT (NEW.`off_duty_allowed` <=> OLD.`off_duty_allowed`) OR NOT (NEW.`weapon_enabled` <=> OLD.`weapon_enabled`) OR NOT (NEW.`sort_order` <=> OLD.`sort_order`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'armory_weapon',NEW.`armory_weapon_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE armory_weapon from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_weapon','id',OLD.`armory_weapon_id`,'record',JSON_OBJECT('faction_id',COALESCE(OLD.`faction_id`,0),'armory_type_id',COALESCE(OLD.`armory_type_id`,0),'weapon_id',COALESCE(OLD.`weapon_id`,0),'weapon_ammo',COALESCE(OLD.`weapon_ammo`,0),'tier_limit',COALESCE(OLD.`tier_limit`,0),'squad_id',COALESCE(OLD.`squad_id`,0),'off_duty_allowed',COALESCE(OLD.`off_duty_allowed`,0),'weapon_enabled',COALESCE(OLD.`weapon_enabled`,0),'sort_order',COALESCE(OLD.`sort_order`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_weapon','id',NEW.`armory_weapon_id`,'record',JSON_OBJECT('faction_id',COALESCE(NEW.`faction_id`,0),'armory_type_id',COALESCE(NEW.`armory_type_id`,0),'weapon_id',COALESCE(NEW.`weapon_id`,0),'weapon_ammo',COALESCE(NEW.`weapon_ammo`,0),'tier_limit',COALESCE(NEW.`tier_limit`,0),'squad_id',COALESCE(NEW.`squad_id`,0),'off_duty_allowed',COALESCE(NEW.`off_duty_allowed`,0),'weapon_enabled',COALESCE(NEW.`weapon_enabled`,0),'sort_order',COALESCE(NEW.`sort_order`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_armory_weapon_delete`//
+CREATE TRIGGER `orp_runtime_armory_weapon_delete` AFTER DELETE ON `faction_armory_weapons` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'armory_weapon',OLD.`armory_weapon_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE armory_weapon from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_weapon','id',OLD.`armory_weapon_id`,'record',JSON_OBJECT('faction_id',COALESCE(OLD.`faction_id`,0),'armory_type_id',COALESCE(OLD.`armory_type_id`,0),'weapon_id',COALESCE(OLD.`weapon_id`,0),'weapon_ammo',COALESCE(OLD.`weapon_ammo`,0),'tier_limit',COALESCE(OLD.`tier_limit`,0),'squad_id',COALESCE(OLD.`squad_id`,0),'off_duty_allowed',COALESCE(OLD.`off_duty_allowed`,0),'weapon_enabled',COALESCE(OLD.`weapon_enabled`,0),'sort_order',COALESCE(OLD.`sort_order`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','armory_weapon','id',OLD.`armory_weapon_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DELIMITER ;
+UPDATE runtime_config_state SET schema_version=2 WHERE id=1;
+
+-- Generated entity change journal. Requires MariaDB TRIGGER privilege.
+DELIMITER //
+DROP TRIGGER IF EXISTS `orp_runtime_property_placement_insert`//
+CREATE TRIGGER `orp_runtime_property_placement_insert` AFTER INSERT ON `properties` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'property_placement',NEW.`property_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT property_placement from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','property_placement','id',NEW.`property_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','property_placement','id',NEW.`property_id`,'record',JSON_OBJECT('property_ext_x',COALESCE(NEW.`property_ext_x`,0),'property_ext_y',COALESCE(NEW.`property_ext_y`,0),'property_ext_z',COALESCE(NEW.`property_ext_z`,0),'property_ext_int',COALESCE(NEW.`property_ext_int`,0),'property_ext_vw',COALESCE(NEW.`property_ext_vw`,0),'property_int_x',COALESCE(NEW.`property_int_x`,0),'property_int_y',COALESCE(NEW.`property_int_y`,0),'property_int_z',COALESCE(NEW.`property_int_z`,0),'property_int_int',COALESCE(NEW.`property_int_int`,0),'property_int_vw',COALESCE(NEW.`property_int_vw`,0),'property_buy_pos_x',COALESCE(NEW.`property_buy_pos_x`,0),'property_buy_pos_y',COALESCE(NEW.`property_buy_pos_y`,0),'property_buy_pos_z',COALESCE(NEW.`property_buy_pos_z`,0),'property_buy_pos_int',COALESCE(NEW.`property_buy_pos_int`,0),'property_buy_pos_vw',COALESCE(NEW.`property_buy_pos_vw`,0),'property_extra_pos_x',COALESCE(NEW.`property_extra_pos_x`,0),'property_extra_pos_y',COALESCE(NEW.`property_extra_pos_y`,0),'property_extra_pos_z',COALESCE(NEW.`property_extra_pos_z`,0),'property_extra_pos_int',COALESCE(NEW.`property_extra_pos_int`,0),'property_extra_pos_vw',COALESCE(NEW.`property_extra_pos_vw`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_property_placement_update`//
+CREATE TRIGGER `orp_runtime_property_placement_update` AFTER UPDATE ON `properties` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`property_ext_x` <=> OLD.`property_ext_x`) OR NOT (NEW.`property_ext_y` <=> OLD.`property_ext_y`) OR NOT (NEW.`property_ext_z` <=> OLD.`property_ext_z`) OR NOT (NEW.`property_ext_int` <=> OLD.`property_ext_int`) OR NOT (NEW.`property_ext_vw` <=> OLD.`property_ext_vw`) OR NOT (NEW.`property_int_x` <=> OLD.`property_int_x`) OR NOT (NEW.`property_int_y` <=> OLD.`property_int_y`) OR NOT (NEW.`property_int_z` <=> OLD.`property_int_z`) OR NOT (NEW.`property_int_int` <=> OLD.`property_int_int`) OR NOT (NEW.`property_int_vw` <=> OLD.`property_int_vw`) OR NOT (NEW.`property_buy_pos_x` <=> OLD.`property_buy_pos_x`) OR NOT (NEW.`property_buy_pos_y` <=> OLD.`property_buy_pos_y`) OR NOT (NEW.`property_buy_pos_z` <=> OLD.`property_buy_pos_z`) OR NOT (NEW.`property_buy_pos_int` <=> OLD.`property_buy_pos_int`) OR NOT (NEW.`property_buy_pos_vw` <=> OLD.`property_buy_pos_vw`) OR NOT (NEW.`property_extra_pos_x` <=> OLD.`property_extra_pos_x`) OR NOT (NEW.`property_extra_pos_y` <=> OLD.`property_extra_pos_y`) OR NOT (NEW.`property_extra_pos_z` <=> OLD.`property_extra_pos_z`) OR NOT (NEW.`property_extra_pos_int` <=> OLD.`property_extra_pos_int`) OR NOT (NEW.`property_extra_pos_vw` <=> OLD.`property_extra_pos_vw`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'property_placement',NEW.`property_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE property_placement from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','property_placement','id',OLD.`property_id`,'record',JSON_OBJECT('property_ext_x',COALESCE(OLD.`property_ext_x`,0),'property_ext_y',COALESCE(OLD.`property_ext_y`,0),'property_ext_z',COALESCE(OLD.`property_ext_z`,0),'property_ext_int',COALESCE(OLD.`property_ext_int`,0),'property_ext_vw',COALESCE(OLD.`property_ext_vw`,0),'property_int_x',COALESCE(OLD.`property_int_x`,0),'property_int_y',COALESCE(OLD.`property_int_y`,0),'property_int_z',COALESCE(OLD.`property_int_z`,0),'property_int_int',COALESCE(OLD.`property_int_int`,0),'property_int_vw',COALESCE(OLD.`property_int_vw`,0),'property_buy_pos_x',COALESCE(OLD.`property_buy_pos_x`,0),'property_buy_pos_y',COALESCE(OLD.`property_buy_pos_y`,0),'property_buy_pos_z',COALESCE(OLD.`property_buy_pos_z`,0),'property_buy_pos_int',COALESCE(OLD.`property_buy_pos_int`,0),'property_buy_pos_vw',COALESCE(OLD.`property_buy_pos_vw`,0),'property_extra_pos_x',COALESCE(OLD.`property_extra_pos_x`,0),'property_extra_pos_y',COALESCE(OLD.`property_extra_pos_y`,0),'property_extra_pos_z',COALESCE(OLD.`property_extra_pos_z`,0),'property_extra_pos_int',COALESCE(OLD.`property_extra_pos_int`,0),'property_extra_pos_vw',COALESCE(OLD.`property_extra_pos_vw`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','property_placement','id',NEW.`property_id`,'record',JSON_OBJECT('property_ext_x',COALESCE(NEW.`property_ext_x`,0),'property_ext_y',COALESCE(NEW.`property_ext_y`,0),'property_ext_z',COALESCE(NEW.`property_ext_z`,0),'property_ext_int',COALESCE(NEW.`property_ext_int`,0),'property_ext_vw',COALESCE(NEW.`property_ext_vw`,0),'property_int_x',COALESCE(NEW.`property_int_x`,0),'property_int_y',COALESCE(NEW.`property_int_y`,0),'property_int_z',COALESCE(NEW.`property_int_z`,0),'property_int_int',COALESCE(NEW.`property_int_int`,0),'property_int_vw',COALESCE(NEW.`property_int_vw`,0),'property_buy_pos_x',COALESCE(NEW.`property_buy_pos_x`,0),'property_buy_pos_y',COALESCE(NEW.`property_buy_pos_y`,0),'property_buy_pos_z',COALESCE(NEW.`property_buy_pos_z`,0),'property_buy_pos_int',COALESCE(NEW.`property_buy_pos_int`,0),'property_buy_pos_vw',COALESCE(NEW.`property_buy_pos_vw`,0),'property_extra_pos_x',COALESCE(NEW.`property_extra_pos_x`,0),'property_extra_pos_y',COALESCE(NEW.`property_extra_pos_y`,0),'property_extra_pos_z',COALESCE(NEW.`property_extra_pos_z`,0),'property_extra_pos_int',COALESCE(NEW.`property_extra_pos_int`,0),'property_extra_pos_vw',COALESCE(NEW.`property_extra_pos_vw`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_property_placement_delete`//
+CREATE TRIGGER `orp_runtime_property_placement_delete` AFTER DELETE ON `properties` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'property_placement',OLD.`property_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE property_placement from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','property_placement','id',OLD.`property_id`,'record',JSON_OBJECT('property_ext_x',COALESCE(OLD.`property_ext_x`,0),'property_ext_y',COALESCE(OLD.`property_ext_y`,0),'property_ext_z',COALESCE(OLD.`property_ext_z`,0),'property_ext_int',COALESCE(OLD.`property_ext_int`,0),'property_ext_vw',COALESCE(OLD.`property_ext_vw`,0),'property_int_x',COALESCE(OLD.`property_int_x`,0),'property_int_y',COALESCE(OLD.`property_int_y`,0),'property_int_z',COALESCE(OLD.`property_int_z`,0),'property_int_int',COALESCE(OLD.`property_int_int`,0),'property_int_vw',COALESCE(OLD.`property_int_vw`,0),'property_buy_pos_x',COALESCE(OLD.`property_buy_pos_x`,0),'property_buy_pos_y',COALESCE(OLD.`property_buy_pos_y`,0),'property_buy_pos_z',COALESCE(OLD.`property_buy_pos_z`,0),'property_buy_pos_int',COALESCE(OLD.`property_buy_pos_int`,0),'property_buy_pos_vw',COALESCE(OLD.`property_buy_pos_vw`,0),'property_extra_pos_x',COALESCE(OLD.`property_extra_pos_x`,0),'property_extra_pos_y',COALESCE(OLD.`property_extra_pos_y`,0),'property_extra_pos_z',COALESCE(OLD.`property_extra_pos_z`,0),'property_extra_pos_int',COALESCE(OLD.`property_extra_pos_int`,0),'property_extra_pos_vw',COALESCE(OLD.`property_extra_pos_vw`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','property_placement','id',OLD.`property_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DELIMITER ;
+UPDATE runtime_config_state SET schema_version=3 WHERE id=1;
+
+ALTER TABLE dealerships ADD COLUMN IF NOT EXISTS dealer_interior INT NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS dealer_world INT NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS dealer_spawn_interior INT NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS dealer_spawn_world INT NOT NULL DEFAULT 0;
+-- Generated entity change journal. Requires MariaDB TRIGGER privilege.
+DELIMITER //
+DROP TRIGGER IF EXISTS `orp_runtime_vehicle_spawn_insert`//
+CREATE TRIGGER `orp_runtime_vehicle_spawn_insert` AFTER INSERT ON `vehicles` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'vehicle_spawn',NEW.`vehicle_sqlid`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT vehicle_spawn from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','vehicle_spawn','id',NEW.`vehicle_sqlid`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','vehicle_spawn','id',NEW.`vehicle_sqlid`,'record',JSON_OBJECT('vehicle_pos_x',COALESCE(NEW.`vehicle_pos_x`,0),'vehicle_pos_y',COALESCE(NEW.`vehicle_pos_y`,0),'vehicle_pos_z',COALESCE(NEW.`vehicle_pos_z`,0),'vehicle_pos_a',COALESCE(NEW.`vehicle_pos_a`,0),'vehicle_int',COALESCE(NEW.`vehicle_int`,0),'vehicle_vw',COALESCE(NEW.`vehicle_vw`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_vehicle_spawn_update`//
+CREATE TRIGGER `orp_runtime_vehicle_spawn_update` AFTER UPDATE ON `vehicles` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`vehicle_pos_x` <=> OLD.`vehicle_pos_x`) OR NOT (NEW.`vehicle_pos_y` <=> OLD.`vehicle_pos_y`) OR NOT (NEW.`vehicle_pos_z` <=> OLD.`vehicle_pos_z`) OR NOT (NEW.`vehicle_pos_a` <=> OLD.`vehicle_pos_a`) OR NOT (NEW.`vehicle_int` <=> OLD.`vehicle_int`) OR NOT (NEW.`vehicle_vw` <=> OLD.`vehicle_vw`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'vehicle_spawn',NEW.`vehicle_sqlid`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE vehicle_spawn from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','vehicle_spawn','id',OLD.`vehicle_sqlid`,'record',JSON_OBJECT('vehicle_pos_x',COALESCE(OLD.`vehicle_pos_x`,0),'vehicle_pos_y',COALESCE(OLD.`vehicle_pos_y`,0),'vehicle_pos_z',COALESCE(OLD.`vehicle_pos_z`,0),'vehicle_pos_a',COALESCE(OLD.`vehicle_pos_a`,0),'vehicle_int',COALESCE(OLD.`vehicle_int`,0),'vehicle_vw',COALESCE(OLD.`vehicle_vw`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','vehicle_spawn','id',NEW.`vehicle_sqlid`,'record',JSON_OBJECT('vehicle_pos_x',COALESCE(NEW.`vehicle_pos_x`,0),'vehicle_pos_y',COALESCE(NEW.`vehicle_pos_y`,0),'vehicle_pos_z',COALESCE(NEW.`vehicle_pos_z`,0),'vehicle_pos_a',COALESCE(NEW.`vehicle_pos_a`,0),'vehicle_int',COALESCE(NEW.`vehicle_int`,0),'vehicle_vw',COALESCE(NEW.`vehicle_vw`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_vehicle_spawn_delete`//
+CREATE TRIGGER `orp_runtime_vehicle_spawn_delete` AFTER DELETE ON `vehicles` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'vehicle_spawn',OLD.`vehicle_sqlid`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE vehicle_spawn from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','vehicle_spawn','id',OLD.`vehicle_sqlid`,'record',JSON_OBJECT('vehicle_pos_x',COALESCE(OLD.`vehicle_pos_x`,0),'vehicle_pos_y',COALESCE(OLD.`vehicle_pos_y`,0),'vehicle_pos_z',COALESCE(OLD.`vehicle_pos_z`,0),'vehicle_pos_a',COALESCE(OLD.`vehicle_pos_a`,0),'vehicle_int',COALESCE(OLD.`vehicle_int`,0),'vehicle_vw',COALESCE(OLD.`vehicle_vw`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','vehicle_spawn','id',OLD.`vehicle_sqlid`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_dealership_placement_insert`//
+CREATE TRIGGER `orp_runtime_dealership_placement_insert` AFTER INSERT ON `dealerships` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'dealership_placement',NEW.`dealer_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','INSERT dealership_placement from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','dealership_placement','id',NEW.`dealer_id`,'record',NULL))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','dealership_placement','id',NEW.`dealer_id`,'record',JSON_OBJECT('dealer_name',COALESCE(NEW.`dealer_name`,''),'dealer_pos_x',COALESCE(NEW.`dealer_pos_x`,0),'dealer_pos_y',COALESCE(NEW.`dealer_pos_y`,0),'dealer_pos_z',COALESCE(NEW.`dealer_pos_z`,0),'dealer_interior',COALESCE(NEW.`dealer_interior`,0),'dealer_world',COALESCE(NEW.`dealer_world`,0),'dealer_spawn_x',COALESCE(NEW.`dealer_spawn_x`,0),'dealer_spawn_y',COALESCE(NEW.`dealer_spawn_y`,0),'dealer_spawn_z',COALESCE(NEW.`dealer_spawn_z`,0),'dealer_spawn_a',COALESCE(NEW.`dealer_spawn_a`,0),'dealer_spawn_interior',COALESCE(NEW.`dealer_spawn_interior`,0),'dealer_spawn_world',COALESCE(NEW.`dealer_spawn_world`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_dealership_placement_update`//
+CREATE TRIGGER `orp_runtime_dealership_placement_update` AFTER UPDATE ON `dealerships` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 AND (NOT (NEW.`dealer_name` <=> OLD.`dealer_name`) OR NOT (NEW.`dealer_pos_x` <=> OLD.`dealer_pos_x`) OR NOT (NEW.`dealer_pos_y` <=> OLD.`dealer_pos_y`) OR NOT (NEW.`dealer_pos_z` <=> OLD.`dealer_pos_z`) OR NOT (NEW.`dealer_interior` <=> OLD.`dealer_interior`) OR NOT (NEW.`dealer_world` <=> OLD.`dealer_world`) OR NOT (NEW.`dealer_spawn_x` <=> OLD.`dealer_spawn_x`) OR NOT (NEW.`dealer_spawn_y` <=> OLD.`dealer_spawn_y`) OR NOT (NEW.`dealer_spawn_z` <=> OLD.`dealer_spawn_z`) OR NOT (NEW.`dealer_spawn_a` <=> OLD.`dealer_spawn_a`) OR NOT (NEW.`dealer_spawn_interior` <=> OLD.`dealer_spawn_interior`) OR NOT (NEW.`dealer_spawn_world` <=> OLD.`dealer_spawn_world`)) THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'dealership_placement',NEW.`dealer_id`,'upsert');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','UPDATE dealership_placement from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','dealership_placement','id',OLD.`dealer_id`,'record',JSON_OBJECT('dealer_name',COALESCE(OLD.`dealer_name`,''),'dealer_pos_x',COALESCE(OLD.`dealer_pos_x`,0),'dealer_pos_y',COALESCE(OLD.`dealer_pos_y`,0),'dealer_pos_z',COALESCE(OLD.`dealer_pos_z`,0),'dealer_interior',COALESCE(OLD.`dealer_interior`,0),'dealer_world',COALESCE(OLD.`dealer_world`,0),'dealer_spawn_x',COALESCE(OLD.`dealer_spawn_x`,0),'dealer_spawn_y',COALESCE(OLD.`dealer_spawn_y`,0),'dealer_spawn_z',COALESCE(OLD.`dealer_spawn_z`,0),'dealer_spawn_a',COALESCE(OLD.`dealer_spawn_a`,0),'dealer_spawn_interior',COALESCE(OLD.`dealer_spawn_interior`,0),'dealer_spawn_world',COALESCE(OLD.`dealer_spawn_world`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','dealership_placement','id',NEW.`dealer_id`,'record',JSON_OBJECT('dealer_name',COALESCE(NEW.`dealer_name`,''),'dealer_pos_x',COALESCE(NEW.`dealer_pos_x`,0),'dealer_pos_y',COALESCE(NEW.`dealer_pos_y`,0),'dealer_pos_z',COALESCE(NEW.`dealer_pos_z`,0),'dealer_interior',COALESCE(NEW.`dealer_interior`,0),'dealer_world',COALESCE(NEW.`dealer_world`,0),'dealer_spawn_x',COALESCE(NEW.`dealer_spawn_x`,0),'dealer_spawn_y',COALESCE(NEW.`dealer_spawn_y`,0),'dealer_spawn_z',COALESCE(NEW.`dealer_spawn_z`,0),'dealer_spawn_a',COALESCE(NEW.`dealer_spawn_a`,0),'dealer_spawn_interior',COALESCE(NEW.`dealer_spawn_interior`,0),'dealer_spawn_world',COALESCE(NEW.`dealer_spawn_world`,0))))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DROP TRIGGER IF EXISTS `orp_runtime_dealership_placement_delete`//
+CREATE TRIGGER `orp_runtime_dealership_placement_delete` AFTER DELETE ON `dealerships` FOR EACH ROW
+BEGIN
+  DECLARE v_revision INT UNSIGNED;
+  IF COALESCE(@orp_config_write,0)=0 THEN
+    UPDATE runtime_config_state SET revision=revision+1,last_error='' WHERE id=1 AND revision<2147483000;
+    IF ROW_COUNT()<>1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Runtime configuration state unavailable or revision limit reached'; END IF;
+    SELECT revision INTO v_revision FROM runtime_config_state WHERE id=1;
+    INSERT INTO runtime_entity_changes(revision,entity_type,entity_id,operation) VALUES(v_revision,'dealership_placement',OLD.`dealer_id`,'delete');
+    INSERT INTO runtime_config_audit(revision,account_id,account_name,source,description,before_json,after_json,created_at) VALUES(v_revision,0,'Database','database','DELETE dealership_placement from database writer',JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','dealership_placement','id',OLD.`dealer_id`,'record',JSON_OBJECT('dealer_name',COALESCE(OLD.`dealer_name`,''),'dealer_pos_x',COALESCE(OLD.`dealer_pos_x`,0),'dealer_pos_y',COALESCE(OLD.`dealer_pos_y`,0),'dealer_pos_z',COALESCE(OLD.`dealer_pos_z`,0),'dealer_interior',COALESCE(OLD.`dealer_interior`,0),'dealer_world',COALESCE(OLD.`dealer_world`,0),'dealer_spawn_x',COALESCE(OLD.`dealer_spawn_x`,0),'dealer_spawn_y',COALESCE(OLD.`dealer_spawn_y`,0),'dealer_spawn_z',COALESCE(OLD.`dealer_spawn_z`,0),'dealer_spawn_a',COALESCE(OLD.`dealer_spawn_a`,0),'dealer_spawn_interior',COALESCE(OLD.`dealer_spawn_interior`,0),'dealer_spawn_world',COALESCE(OLD.`dealer_spawn_world`,0))))),JSON_OBJECT('entities',JSON_ARRAY(JSON_OBJECT('type','dealership_placement','id',OLD.`dealer_id`,'record',NULL))),UNIX_TIMESTAMP());
+  END IF;
+END//
+DELIMITER ;
+UPDATE runtime_config_state SET schema_version=4 WHERE id=1;
+
+-- Firm lifecycle routines. The game reserves the quoted fee before submitting
+-- registration and refunds its in-memory reservation on a rejected result.
+-- The persistent cash debit, firm and owner membership
+-- commit together. One registry lock serializes creation and invite capacity checks.
+CREATE TABLE IF NOT EXISTS firm_registry_lock (id TINYINT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT IGNORE INTO firm_registry_lock(id) VALUES(1);
+DELIMITER //
+DROP PROCEDURE IF EXISTS orp_firm_register//
+CREATE PROCEDURE orp_firm_register(IN p_character INT,IN p_name VARCHAR(64),IN p_abbrev VARCHAR(8),IN p_field INT,IN p_member_slots INT,IN p_vehicle_slots INT,IN p_fee INT)
+BEGIN
+    DECLARE v_lock INT;
+    DECLARE v_id INT;
+    DECLARE v_license VARCHAR(32);
+    DECLARE v_error TEXT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1 v_error=MESSAGE_TEXT;
+        ROLLBACK;
+        SELECT 0 AS firm_id,v_error AS result;
+    END;
+    START TRANSACTION;
+    SELECT id INTO v_lock FROM firm_registry_lock WHERE id=1 FOR UPDATE;
+    SET v_lock=NULL;
+    SELECT player_id INTO v_lock FROM characters WHERE player_id=p_character FOR UPDATE;
+    IF v_lock IS NULL OR p_character<1 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='character'; END IF;
+    IF p_field NOT BETWEEN 1 AND 8 OR CHAR_LENGTH(TRIM(p_name)) NOT BETWEEN 3 AND 63 OR CHAR_LENGTH(TRIM(p_abbrev)) NOT BETWEEN 2 AND 7 OR p_member_slots NOT BETWEEN 1 AND 100 OR p_vehicle_slots NOT BETWEEN 0 AND 200 OR p_fee NOT BETWEEN 0 AND 200000000 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='fields'; END IF;
+    IF (SELECT COUNT(*) FROM firms WHERE firm_status<>3)>=100 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='capacity'; END IF;
+    IF EXISTS(SELECT 1 FROM firm_members m JOIN firms f ON f.firm_id=m.firm_id WHERE m.character_id=p_character AND f.firm_status<>3) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='membership'; END IF;
+    IF EXISTS(SELECT 1 FROM firms WHERE firm_status<>3 AND (firm_name=p_name OR firm_abbrev=p_abbrev OR firm_owner_char_id=p_character)) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='duplicate'; END IF;
+    SET v_license=CASE p_field WHEN 1 THEN 'mechanic' WHEN 2 THEN 'security_guard' WHEN 3 THEN 'lawyer' WHEN 4 THEN 'transit' WHEN 5 THEN 'logistics' WHEN 6 THEN 'media' ELSE NULL END;
+    IF v_license IS NOT NULL AND NOT EXISTS(SELECT 1 FROM character_licenses WHERE character_id=p_character AND license_type=v_license) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='license'; END IF;
+    IF (SELECT player_cash FROM characters WHERE player_id=p_character)<p_fee THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='funds'; END IF;
+    UPDATE characters SET player_cash=player_cash-p_fee WHERE player_id=p_character;
+    INSERT INTO firms(firm_name,firm_abbrev,firm_field,firm_status,firm_owner_char_id,firm_bank,firm_member_slots,firm_vehicle_slots,firm_hex,firm_created_at,firm_updated_at) VALUES(TRIM(p_name),TRIM(p_abbrev),p_field,1,p_character,0,p_member_slots,p_vehicle_slots,1606013439,UNIX_TIMESTAMP(),UNIX_TIMESTAMP());
+    SET v_id=LAST_INSERT_ID();
+    INSERT INTO firm_members(firm_id,character_id,firm_rank,firm_rank_name,firm_permissions,firm_joined_at) VALUES(v_id,p_character,1,'Owner',255,UNIX_TIMESTAMP());
+    COMMIT;
+    SELECT v_id AS firm_id,'ok' AS result;
+END//
+DROP PROCEDURE IF EXISTS orp_firm_join//
+CREATE PROCEDURE orp_firm_join(IN p_firm INT,IN p_character INT,IN p_inviter INT)
+BEGIN
+    DECLARE v_lock INT DEFAULT NULL;
+    DECLARE v_slots INT DEFAULT NULL;
+    DECLARE v_error TEXT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1 v_error=MESSAGE_TEXT;
+        ROLLBACK;
+        SELECT 0 AS firm_id,v_error AS result;
+    END;
+    START TRANSACTION;
+    SELECT id INTO v_lock FROM firm_registry_lock WHERE id=1 FOR UPDATE;
+    SELECT firm_member_slots INTO v_slots FROM firms WHERE firm_id=p_firm AND firm_status=1 FOR UPDATE;
+    IF v_slots IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='inactive'; END IF;
+    IF NOT EXISTS(SELECT 1 FROM firm_members WHERE firm_id=p_firm AND character_id=p_inviter AND (firm_rank=1 OR (firm_permissions & 1)=1)) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='permission'; END IF;
+    SET v_lock=NULL;
+    SELECT player_id INTO v_lock FROM characters WHERE player_id=p_character FOR UPDATE;
+    IF v_lock IS NULL THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='character'; END IF;
+    IF EXISTS(SELECT 1 FROM firm_members WHERE character_id=p_character) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='membership'; END IF;
+    IF (SELECT COUNT(*) FROM firm_members WHERE firm_id=p_firm)>=v_slots THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='capacity'; END IF;
+    INSERT INTO firm_members(firm_id,character_id,firm_rank,firm_rank_name,firm_permissions,firm_joined_at) VALUES(p_firm,p_character,3,'Employee',16,UNIX_TIMESTAMP());
+    COMMIT;
+    SELECT p_firm AS firm_id,'ok' AS result;
+END//
+DROP PROCEDURE IF EXISTS orp_firm_close//
+CREATE PROCEDURE orp_firm_close(IN p_firm INT,IN p_owner INT)
+BEGIN
+    DECLARE v_lock INT;
+    DECLARE v_owner INT DEFAULT NULL;
+    DECLARE v_bank INT;
+    DECLARE v_field INT;
+    DECLARE v_error TEXT;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        GET DIAGNOSTICS CONDITION 1 v_error=MESSAGE_TEXT;
+        ROLLBACK;
+        SELECT 0 AS firm_id,v_error AS result;
+    END;
+    START TRANSACTION;
+    SELECT id INTO v_lock FROM firm_registry_lock WHERE id=1 FOR UPDATE;
+    SELECT firm_owner_char_id,firm_bank,firm_field INTO v_owner,v_bank,v_field FROM firms WHERE firm_id=p_firm AND firm_status<>3 FOR UPDATE;
+    IF v_owner IS NULL OR v_owner<>p_owner THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='owner'; END IF;
+    IF v_bank<>0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='bank'; END IF;
+    -- Vehicle type 6 is E_VEHICLE_TYPE_FIRM; field 7 is the used-car pool policy.
+    IF v_field<>7 AND EXISTS(SELECT 1 FROM vehicles WHERE vehicle_type=6 AND vehicle_owner=p_firm) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='vehicles'; END IF;
+    UPDATE firms SET firm_status=3,firm_updated_at=UNIX_TIMESTAMP() WHERE firm_id=p_firm;
+    DELETE FROM firm_members WHERE firm_id=p_firm;
+    COMMIT;
+    SELECT p_firm AS firm_id,'ok' AS result;
+END//
+DELIMITER ;
+-- END GENERATED RUNTIME CONFIGURATION

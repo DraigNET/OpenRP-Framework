@@ -21,6 +21,9 @@ enum E_FIRM_DATA
 }
 
 new Firm[MAX_FIRMS][E_FIRM_DATA];
+new bool:FirmClosing[MAX_FIRMS];
+new FirmCloseSerial[MAX_FIRMS];
+new FirmRequestSerial[MAX_FIRMS],FirmReservedFee[MAX_FIRMS],FirmRequestStarted[MAX_FIRMS],FirmRequestPlayer[MAX_FIRMS],FirmRequestSession[MAX_FIRMS];
 
 enum E_PLAYER_FIRM_DATA
 {
@@ -31,9 +34,12 @@ enum E_PLAYER_FIRM_DATA
 }
 
 new PlayerFirm[MAX_PLAYERS][E_PLAYER_FIRM_DATA];
+// Session generations invalidate delayed callbacks after logout or membership changes.
+new FirmSession[MAX_PLAYERS],bool:FirmRegistrationPending[MAX_PLAYERS],bool:FirmMembershipLoading[MAX_PLAYERS];
 
 Firm_ClearEntity(firm_enum_id)
 {
+    FirmClosing[firm_enum_id]=false;
     Firm[firm_enum_id][E_FIRM_ID] = INVALID_FIRM_ID;
     Firm[firm_enum_id][E_FIRM_NAME][0] = EOS;
     Firm[firm_enum_id][E_FIRM_ABBREV][0] = EOS;
@@ -51,6 +57,7 @@ Firm_ClearEntity(firm_enum_id)
 
 Firm_ClearPlayer(playerid)
 {
+    FirmSession[playerid]++;FirmRegistrationPending[playerid]=false;FirmMembershipLoading[playerid]=false;
     PlayerFirm[playerid][E_PLAYER_FIRM_ID] = 0;
     PlayerFirm[playerid][E_PLAYER_FIRM_RANK] = 0;
     PlayerFirm[playerid][E_PLAYER_FIRM_PERMS] = 0;

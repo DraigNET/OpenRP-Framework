@@ -5,8 +5,8 @@ Full searchable documentation: [OpenRP Framework documentation](https://openrp.d
 **OpenRP Framework** (ORP Framework for short) is an empty, ready-to-extend **roleplay gamemode** for **open.mp**, written in Pawn. It may run on SA-MP with some changes, but that is untested.
 
 It contains the systems every serious RP server ends up needing -- accounts and characters, a full admin suite,
-vehicles, properties, businesses, jobs, injuries, phone, police and fire factions -- but **none of the content**
-of any particular server: no custom models, no maps, no interiors and no custom skins.
+vehicles, properties, businesses, jobs, injuries, phone, police and fire factions -- ready for your own
+server configuration, world content and community.
 You bring your own map, models and lore.
 
 > **Status:** blank framework with optional integrations. See [SETUP.md](SETUP.md) for installation and the remaining runtime validation requirements.
@@ -14,6 +14,14 @@ You bring your own map, models and lore.
 New to the code? Read [gamemodes/ARCHITECTURE.md](gamemodes/ARCHITECTURE.md) first.
 
 UCP, ACP, optional API and server-agent source: [web-platform/README.md](web-platform/README.md).
+
+Windows desktop configuration and local server controls: [desktop/README.md](desktop/README.md).
+It connects directly to the same database using a Manager account; no web host is required.
+
+The desktop source includes comments, tests and developer guides. Build with
+`npm ci --include=dev` then `npm run build` from `desktop/`. See its
+[source/architecture guide](desktop/docs/DEVELOPMENT.md) and
+[database adaptation guide](desktop/docs/DATABASE-CHANGES.md).
 
 ## What you get
 
@@ -56,6 +64,21 @@ Follow [SETUP.md](SETUP.md). Linux with EasyPanel is recommended; Windows and Li
 standalone deployments are supported by the source. The schema ships no accounts:
 bootstrap your own Developer-level administrator with a unique generated password.
 Custom skins, voice and Discord are opt-in and disabled by default.
+
+## Live configuration
+
+The ACP **Configuration** page supports Manager-level edits to service locations,
+fees and job rules, weather, server-browser identity, cargo capacities, catalogue
+prices and squads. Connected ACP entity editors cover armory types, lockers, weapons and faction uniforms.
+Use existing in-game tools for entity placement and lifecycle. Saves are validated,
+audited and applied by the running game, with status and restore history.
+
+Import `database/schema.sql` into a new empty database. It includes all required
+tables, defaults and journal triggers; no separate upgrade scripts are needed.
+Use an import account with ALTER, TRIGGER, CREATE ROUTINE and ALTER ROUTINE privileges and deploy matching web
+and gamemode code. Keep the trigger definer account available.
+See [RUNTIME-CONFIGURATION-PROGRESS.md](RUNTIME-CONFIGURATION-PROGRESS.md) for current
+coverage and remaining work, and [the developer checks](tools/runtime-config/README.md).
 
 ## Adding your own content
 

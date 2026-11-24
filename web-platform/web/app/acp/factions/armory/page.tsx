@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { requireStaff } from '@/lib/dal'
-import { ADMIN_LVL, squadsForFaction, squadOptions } from '@/lib/constants'
+import { ADMIN_LVL, squadOptions } from '@/lib/constants'
 import { armoryWeaponName, ARMORY_WEAPON_OPTIONS } from '@/lib/armory-weapons'
 import { ArmoryToolbar, DeleteWeaponButton } from './ArmoryButtons'
 import { saveType, saveWeapon } from './actions'
@@ -42,7 +42,7 @@ export default async function ArmoryTypesPage({ searchParams }: PageProps<'/acp/
     (a.armory_type_id === null ? 1 : 0) - (b.armory_type_id === null ? 1 : 0) || a.sort_order - b.sort_order || a.armory_weapon_id - b.armory_weapon_id)
 
   const selectedFactionRow = factions.find(f => f.faction_id === selectedFaction)
-  const squadMap = squadsForFaction(selectedFactionRow?.faction_type ?? -1, selectedFactionRow?.faction_abbrev)
+  const squadMap = await loadFactionSquads(selectedFaction)
   const factionTypeUrl = `/acp/factions/armory?faction_id=${selectedFaction}&type_id=${selectedTypeId}`
   const enabledCount = weapons.filter(w => w.weapon_enabled === 1).length
 
@@ -144,3 +144,5 @@ export default async function ArmoryTypesPage({ searchParams }: PageProps<'/acp/
     </>
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

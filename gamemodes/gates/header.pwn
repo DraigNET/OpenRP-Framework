@@ -17,7 +17,7 @@
 // with no trailer it pays for a flat 10 slots so a bobtail isn't a free pass.
 forward bool: IsTractorUnit(modelid) ; // jobs/trucker/commodity.pwn, included after this file
 
-#define TOLL_FEE_PER_SLOT   ( 10 )
+#define TOLL_FEE_PER_SLOT (Runtime_Int(RT_TOLLS_CARGO_SLOT_FEE)) // Cached database setting; edit through ACP.
 #define TOLL_BOBTAIL_SLOTS  ( 10 )
 
 // Returns the toll price for a vehicle, based on its cargo capacity (tractor units pay for the
@@ -43,13 +43,23 @@ Gate_GetTollFee(vehicleid) {
 }
 
 #if !defined SERVER_TOLL_FEE 
-	#define SERVER_TOLL_FEE	( 150 )
+	#define SERVER_TOLL_FEE (Runtime_Int(RT_TOLLS_BASE_FEE)) // Cached database setting; edit through ACP.
 #endif
 
 #include "gates/data.pwn"
 #include "gates/func.pwn"
 #include "gates/cmds.pwn"
 #include "gates/tolls.pwn"
+
+// A delayed close belongs to one opening of one persistent gate/object.
+new GateCloseSequence[MAX_GATES];
+
+stock Gate_ScheduleClose(gateid)
+{
+    new sequence = ++GateCloseSequence[gateid];
+    defer Gate_ResetState(gateid, Gate[gateid][E_GATE_SQLID], Gate[gateid][E_GATE_OBJECTID], sequence);
+    return 1;
+}
 
 
 // ############################################################# //
@@ -71,7 +81,7 @@ CMD:gatedelete(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gatedelete [gateid]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -139,7 +149,7 @@ CMD:gatespeed(playerid, params[])
 		return SendClientMessage(playerid, -1, "/gatespeed [gateid] [speed (in miliseconds, i.e. \"0.75\")]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -259,7 +269,7 @@ CMD:gate(playerid, params[]) {
 
 		if  ( ! Gate [ gate_enum_id ] [ E_GATE_STATE ] ) {
 			SendClientMessage(playerid, COLOR_INFO, sprintf("The toll gate will shut automatically after 15 seconds. You've been charged $%s transportation tax.", IntegerWithDelimiter(toll_fee )));
-			defer Gate_ResetState(gate_enum_id);
+			Gate_ScheduleClose(gate_enum_id);
 		}
 	}
 
@@ -269,7 +279,7 @@ CMD:gate(playerid, params[]) {
 
 			if  ( ! Gate [ gate_enum_id ] [ E_GATE_STATE ] ) {
 				SendClientMessage(playerid, COLOR_INFO, "The gate will shut automatically after 15 seconds. Don't get stuck!");
-				defer Gate_ResetState(gate_enum_id);
+				Gate_ScheduleClose(gate_enum_id);
 			}
 		}
 	}
@@ -294,10 +304,7 @@ CMD:gate(playerid, params[]) {
 	}
 	else if ( ! Gate [ gate_enum_id ] [ E_GATE_STATE ] ) {
 
-		if ( Gate [ gate_enum_id ] [ E_GATE_OPEN_POS_X ] == 0.0 || Gate [ gate_enum_id ] [ E_GATE_OPEN_POS_Y ] == 0.0 || Gate [ gate_enum_id ] [ E_GATE_OPEN_POS_Z ] == 0.0 ) {
-
-			return SendClientMessage(playerid, -1, "Gate open positions aren't set up. Get an admin to set them up before doing this command.");
-		}
+		// Zero is a valid coordinate; configuration supplies explicit endpoints.
 		
 		movetime = MoveDynamicObject(Gate [ gate_enum_id ] [ E_GATE_OBJECTID ], Gate [ gate_enum_id ] [ E_GATE_OPEN_POS_X ] + 0.001, Gate [ gate_enum_id ] [ E_GATE_OPEN_POS_Y ] + 0.001, 
 			Gate [ gate_enum_id ] [ E_GATE_OPEN_POS_Z ], Gate [ gate_enum_id ] [ E_GATE_SPEED ], Gate [ gate_enum_id ] [ E_GATE_OPEN_ROT_X ], Gate [ gate_enum_id ] [ E_GATE_OPEN_ROT_Y ], 
@@ -334,7 +341,7 @@ stock bool:Gate_PlayerHasAccess(playerid, gateid)
 		{
 			new playerFaction = Character[playerid][E_CHARACTER_FACTIONID];
 
-			if (GetPlayerFactionSuspension(playerid) != 0)
+			if (playerFaction <= 0 || GetPlayerFactionSuspension(playerid) != 0)
 				return false;
 
 			// Primary faction owner
@@ -373,7 +380,7 @@ stock AutoOpenGate(gateid)
 
     if (Gate[gateid][E_GATE_AUTOCLOSE])
     {
-        defer Gate_ResetState(gateid);
+        Gate_ScheduleClose(gateid);
     }
 
     return 1;
@@ -387,7 +394,9 @@ hook OnPlayerUpdate(playerid)
         if (Gate[i][E_GATE_SQLID] == INVALID_GATE_ID) continue;
 
         // Conditions for auto-open
-        if (Gate[i][E_GATE_AUTOOPEN] == 1 &&
+        if (GetPlayerInterior(playerid) == Gate[i][E_GATE_INTERIOR] &&
+            GetPlayerVirtualWorld(playerid) == Gate[i][E_GATE_VIRTUALWORLD] &&
+            Gate[i][E_GATE_AUTOOPEN] == 1 &&
             Gate[i][E_GATE_STATE] == 0 && // closed
             !IsDynamicObjectMoving(Gate[i][E_GATE_OBJECTID]) &&
             IsPlayerInRangeOfPoint(playerid, Gate[i][E_GATE_RADIUS],
@@ -416,6 +425,8 @@ hook OnPlayerUpdate(playerid)
                     new otherGate = Gate_FindBySQL(otherSQL);
 
                     if (otherGate != INVALID_GATE_ID &&
+                        GetPlayerInterior(playerid) == Gate[otherGate][E_GATE_INTERIOR] &&
+                        GetPlayerVirtualWorld(playerid) == Gate[otherGate][E_GATE_VIRTUALWORLD] &&
                         Gate[otherGate][E_GATE_AUTOOPEN] == 1 &&
                         Gate[otherGate][E_GATE_STATE] == 0 &&
                         !IsDynamicObjectMoving(Gate[otherGate][E_GATE_OBJECTID]) &&
@@ -435,7 +446,14 @@ hook OnPlayerUpdate(playerid)
 }
 
 // Timer: closes an open gate again after the reset time.
-timer Gate_ResetState[GATE_RESET_TIME](gate_enum_id) {
+timer Gate_ResetState[GATE_RESET_TIME](gate_enum_id, sqlid, objectid, sequence) {
+
+    // Ignore callbacks from a deleted/reused slot or a previous opening.
+    if (gate_enum_id < 0 || gate_enum_id >= MAX_GATES) return true;
+    if (Gate[gate_enum_id][E_GATE_SQLID] != sqlid ||
+        Gate[gate_enum_id][E_GATE_OBJECTID] != objectid ||
+        GateCloseSequence[gate_enum_id] != sequence ||
+        !IsValidDynamicObject(objectid)) return true;
 
 	if ( Gate [ gate_enum_id ] [ E_GATE_STATE ] ) {
 

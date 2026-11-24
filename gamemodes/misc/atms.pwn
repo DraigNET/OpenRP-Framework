@@ -127,34 +127,12 @@ static UnregisterATM(index) {
     ATMCount--;
 }
 
-// Loads every ATM from the `atms` table.
+// Connected entities are validated together after factions finish loading.
 LoadATMs() {
-    for (new i = 0; i < ATM_MAX; i++) {
-        ATMData[i][E_ATM_USED] = false;
-    }
-
-    print(" * [ATM] Loading all ATMs...");
-
-    inline ATM_OnDataLoad() {
-        for (new i = 0, r = cache_num_rows(); i < r; ++i) {
-            new dbid;
-            new Float:x, Float:y, Float:z, Float:angle;
-
-            cache_get_value_name_int  (i, "id", dbid);
-            cache_get_value_name_float(i, "pos_x", x);
-            cache_get_value_name_float(i, "pos_y", y);
-            cache_get_value_name_float(i, "pos_z", z);
-            cache_get_value_name_float(i, "angle", angle);
-
-            RegisterATM(dbid, x, y, z, angle);
-        }
-
-        printf(" * [ATM] Loaded %d ATM(s).", cache_num_rows());
-    }
-
-    new query[128];
-    mysql_format(mysql, query, sizeof(query), "SELECT `id`,`pos_x`,`pos_y`,`pos_z`,`angle` FROM `atms`");
-    MySQL_TQueryInline(mysql, using inline ATM_OnDataLoad, query, "");
+    if(!Runtime_EntitiesReady()) return 1;
+    if(Runtime_ConfigurationBusy() || !Runtime_StageATMs()) return 0;
+    if(!Runtime_ActivateATMStage()) { Runtime_CancelATMStage(); return 0; }
+    return Runtime_CommitATMs();
 }
 
 // Inserts a new ATM into the database.
@@ -226,6 +204,7 @@ static IsNearATM(playerid) {
 
 // /createatm - (admin) places an ATM at your position.
 CMD:createatm(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is being applied. Try again shortly.");
     if (GetPlayerAdminLevel(playerid) < ADMIN_LVL_GENERAL) {
         return SendServerMessage(playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.");
     }
@@ -240,6 +219,7 @@ CMD:createatm(playerid, params[]) {
 
 // /deleteatm - (admin) removes the nearest ATM.
 CMD:deleteatm(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is being applied. Try again shortly.");
     if (GetPlayerAdminLevel(playerid) < ADMIN_LVL_GENERAL) {
         return SendServerMessage(playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.");
     }
@@ -265,6 +245,7 @@ CMD:deleteatm(playerid, params[]) {
 
 // /moveatm - (admin) moves the nearest ATM to your position.
 CMD:moveatm(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is being applied. Try again shortly.");
     if (GetPlayerAdminLevel(playerid) < ADMIN_LVL_GENERAL) {
         return SendServerMessage(playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.");
     }
@@ -467,5 +448,88 @@ static ShowATMBalance(playerid) {
     }
     Dialog_ShowCallback(playerid, using inline ViewATMMenu, DIALOG_STYLE_MSGBOX,
         "Your bank balance", string, "Select", "Back");
+    return 1;
+}
+// A reload stages changed ATM visuals and keeps unchanged slots/handles stable.
+// Bank balances live on characters, so no player inventory is replaced here.
+static RuntimeATMStage[ATM_MAX][E_ATM_DATA], bool:RuntimeATMChanged[ATM_MAX], RuntimeATMStageCount;
+
+Runtime_CancelATMStage() {
+    for(new i; i<ATM_MAX; i++) if(RuntimeATMChanged[i]) {
+        if(IsValidDynamicObject(RuntimeATMStage[i][E_ATM_OBJECT])) DestroyDynamicObject(RuntimeATMStage[i][E_ATM_OBJECT]);
+        if(IsValidDynamic3DTextLabel(RuntimeATMStage[i][E_ATM_LABEL])) DestroyDynamic3DTextLabel(RuntimeATMStage[i][E_ATM_LABEL]);
+        if(IsValidDynamicMapIcon(RuntimeATMStage[i][E_ATM_ICON])) DestroyDynamicMapIcon(RuntimeATMStage[i][E_ATM_ICON]);
+        RuntimeATMChanged[i]=false;
+    }
+    return 1;
+}
+
+// Snapshot statements can run on the worker connection during live reloads.
+Runtime_QueryATMs(query[],size) {
+    format(query,size,"SELECT -1 id,0 pos_x,0 pos_y,0 pos_z,0 angle,s.revision FROM runtime_config_state s WHERE s.id=1 UNION ALL SELECT a.id,a.pos_x,a.pos_y,a.pos_z,a.angle,s.revision FROM atms a JOIN runtime_config_state s ON s.id=1 ORDER BY id");
+    return 1;
+}
+
+Runtime_StageATMs(expectedRevision=0,bool:fromCache=false) {
+    Runtime_CancelATMStage();
+    for(new i; i<ATM_MAX; i++) for(new c; c<E_ATM_DATA; c++) RuntimeATMStage[i][E_ATM_DATA:c]=0;
+    new Cache:result=MYSQL_INVALID_CACHE;
+    if(!fromCache) { new query[1024]; Runtime_QueryATMs(query,sizeof query); result=mysql_query(mysql,query); }
+    if(!fromCache && !cache_is_valid(result)) return 0;
+    new rows=cache_num_rows()-1, snapshotRevision;
+    if(rows<0) { if(!fromCache) cache_delete(result); return 0; }
+    cache_get_value_name_int(0,"revision",snapshotRevision);
+    if(expectedRevision && snapshotRevision!=expectedRevision) { if(!fromCache) cache_delete(result); return 0; }
+    if(rows>ATM_MAX) { if(!fromCache) cache_delete(result); return 0; }
+    // Reserve existing IDs before choosing slots for new rows, including at capacity.
+    for(new row=1; row<=rows; row++) {
+        new id; cache_get_value_name_int(row,"id",id);
+        new index=FindATMByDBID(id);
+        if(index!=-1) for(new c; c<E_ATM_DATA; c++) RuntimeATMStage[index][E_ATM_DATA:c]=ATMData[index][E_ATM_DATA:c];
+    }
+    RuntimeATMStageCount=rows;
+    for(new row=1; row<=rows; row++) {
+        new id; new Float:x,Float:y,Float:z,Float:angle;
+        cache_get_value_name_int(row,"id",id); cache_get_value_name_float(row,"pos_x",x); cache_get_value_name_float(row,"pos_y",y); cache_get_value_name_float(row,"pos_z",z); cache_get_value_name_float(row,"angle",angle);
+        if(id<1 || !(floatabs(x)<=20000.0 && floatabs(y)<=20000.0 && floatabs(z)<=20000.0 && angle>=0.0 && angle<=360.0)) { if(!fromCache) cache_delete(result); Runtime_CancelATMStage(); return 0; }
+        new index=FindATMByDBID(id);
+        if(index!=-1 && ATMData[index][E_ATM_POS_X]==x && ATMData[index][E_ATM_POS_Y]==y && ATMData[index][E_ATM_POS_Z]==z && ATMData[index][E_ATM_ANGLE]==angle && IsValidDynamicObject(ATMData[index][E_ATM_OBJECT]) && IsValidDynamic3DTextLabel(ATMData[index][E_ATM_LABEL]) && IsValidDynamicMapIcon(ATMData[index][E_ATM_ICON])) continue;
+        if(index==-1) for(new i; i<ATM_MAX; i++) if(!RuntimeATMStage[i][E_ATM_USED]) { index=i; break; }
+        if(index==-1) { if(!fromCache) cache_delete(result); Runtime_CancelATMStage(); return 0; }
+        RuntimeATMStage[index][E_ATM_DB_ID]=id; RuntimeATMStage[index][E_ATM_USED]=true;
+        RuntimeATMStage[index][E_ATM_POS_X]=x; RuntimeATMStage[index][E_ATM_POS_Y]=y; RuntimeATMStage[index][E_ATM_POS_Z]=z; RuntimeATMStage[index][E_ATM_ANGLE]=angle;
+        RuntimeATMStage[index][E_ATM_LABEL]=CreateDynamic3DTextLabel(sprintf("[Automated Teller Machine] [%d]\n{DEDEDE}/atm to access your bank account.",id),COLOR_ATM,x,y,z,6.0,.worldid=RT_STAGING_WORLD);
+        RuntimeATMStage[index][E_ATM_OBJECT]=CreateDynamicObject(ATM_OBJECT_ID,x,y,z,0.0,0.0,angle,.worldid=RT_STAGING_WORLD,.priority=STREAM_PRIORITY_INTERACTABLE);
+        RuntimeATMStage[index][E_ATM_ICON]=CreateDynamicMapIcon(x,y,z,52,0xFFFFFFFF,.worldid=RT_STAGING_WORLD,.streamdistance=75.0);
+        RuntimeATMChanged[index]=true;
+        if(!IsValidDynamic3DTextLabel(RuntimeATMStage[index][E_ATM_LABEL]) || !IsValidDynamicObject(RuntimeATMStage[index][E_ATM_OBJECT]) || !IsValidDynamicMapIcon(RuntimeATMStage[index][E_ATM_ICON])) { if(!fromCache) cache_delete(result); Runtime_CancelATMStage(); return 0; }
+    }
+    if(!fromCache) cache_delete(result);
+    return 1;
+}
+
+// Reveal only inside the final callback, after every family has been validated.
+Runtime_ActivateATMStage() {
+    new worlds[]={-1};
+    for(new i; i<ATM_MAX; i++) if(RuntimeATMChanged[i]) {
+        if(!IsValidDynamicObject(RuntimeATMStage[i][E_ATM_OBJECT]) || !IsValidDynamic3DTextLabel(RuntimeATMStage[i][E_ATM_LABEL]) || !IsValidDynamicMapIcon(RuntimeATMStage[i][E_ATM_ICON])) return 0;
+        // Streamer clears the world set for -1 (all worlds), but returns false
+        // for that sentinel. Verify the resulting wildcard instead of the return.
+        Streamer_SetArrayData(STREAMER_TYPE_OBJECT,RuntimeATMStage[i][E_ATM_OBJECT],E_STREAMER_WORLD_ID,worlds);
+        Streamer_SetArrayData(STREAMER_TYPE_3D_TEXT_LABEL,RuntimeATMStage[i][E_ATM_LABEL],E_STREAMER_WORLD_ID,worlds);
+        Streamer_SetArrayData(STREAMER_TYPE_MAP_ICON,RuntimeATMStage[i][E_ATM_ICON],E_STREAMER_WORLD_ID,worlds);
+        if(Streamer_GetArrayDataLength(STREAMER_TYPE_OBJECT,RuntimeATMStage[i][E_ATM_OBJECT],E_STREAMER_WORLD_ID)!=-1 || Streamer_GetArrayDataLength(STREAMER_TYPE_3D_TEXT_LABEL,RuntimeATMStage[i][E_ATM_LABEL],E_STREAMER_WORLD_ID)!=-1 || Streamer_GetArrayDataLength(STREAMER_TYPE_MAP_ICON,RuntimeATMStage[i][E_ATM_ICON],E_STREAMER_WORLD_ID)!=-1) return 0;
+    }
+    return 1;
+}
+
+// Commit cannot allocate or fail: all changed visuals were verified in staging.
+Runtime_CommitATMs() {
+    for(new i; i<ATM_MAX; i++) {
+        if(ATMData[i][E_ATM_USED] && (!RuntimeATMStage[i][E_ATM_USED] || RuntimeATMChanged[i])) ClearATMVisuals(i);
+        for(new c; c<E_ATM_DATA; c++) ATMData[i][E_ATM_DATA:c]=RuntimeATMStage[i][E_ATM_DATA:c];
+        RuntimeATMChanged[i]=false;
+    }
+    ATMCount=RuntimeATMStageCount;
     return 1;
 }

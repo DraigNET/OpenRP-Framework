@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node --env-file=.env index.mjs",
     "check": "node --check index.mjs",
-    "test": "node --test model-path.test.mjs"
+    "test": "node --test model-path.test.mjs http.test.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

@@ -1,0 +1,679 @@
+[
+  {
+    "key": "garbage_1",
+    "label": "Collection point 1",
+    "category": "garbage",
+    "x": 255.6008,
+    "y": 20.495,
+    "z": 2.4475,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 0
+  },
+  {
+    "key": "garbage_2",
+    "label": "Collection point 2",
+    "category": "garbage",
+    "x": 215.0402,
+    "y": -5.6737,
+    "z": 2.5371,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 1
+  },
+  {
+    "key": "garbage_3",
+    "label": "Collection point 3",
+    "category": "garbage",
+    "x": 204.5641,
+    "y": -33.1239,
+    "z": 1.5781,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 2
+  },
+  {
+    "key": "garbage_4",
+    "label": "Collection point 4",
+    "category": "garbage",
+    "x": 162.347,
+    "y": -10.7469,
+    "z": 1.5781,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 3
+  },
+  {
+    "key": "garbage_5",
+    "label": "Collection point 5",
+    "category": "garbage",
+    "x": 182.7723,
+    "y": -91.8026,
+    "z": 1.5427,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 4
+  },
+  {
+    "key": "garbage_6",
+    "label": "Collection point 6",
+    "category": "garbage",
+    "x": 175.6007,
+    "y": -118.9284,
+    "z": 1.5503,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 5
+  },
+  {
+    "key": "garbage_7",
+    "label": "Collection point 7",
+    "category": "garbage",
+    "x": 210.9835,
+    "y": -163.2349,
+    "z": 1.5781,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 6
+  },
+  {
+    "key": "garbage_8",
+    "label": "Collection point 8",
+    "category": "garbage",
+    "x": 215.6126,
+    "y": -181.7471,
+    "z": 1.5781,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 7
+  },
+  {
+    "key": "garbage_9",
+    "label": "Collection point 9",
+    "category": "garbage",
+    "x": 121.1602,
+    "y": -154.7676,
+    "z": 1.5781,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 8
+  },
+  {
+    "key": "garbage_10",
+    "label": "Collection point 10",
+    "category": "garbage",
+    "x": 199.9074,
+    "y": -325.5791,
+    "z": 1.7051,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 9
+  },
+  {
+    "key": "garbage_11",
+    "label": "Collection point 11",
+    "category": "garbage",
+    "x": 654.3475,
+    "y": -439.0498,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 10
+  },
+  {
+    "key": "garbage_12",
+    "label": "Collection point 12",
+    "category": "garbage",
+    "x": 644.6218,
+    "y": -511.1986,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 11
+  },
+  {
+    "key": "garbage_13",
+    "label": "Collection point 13",
+    "category": "garbage",
+    "x": 661.957,
+    "y": -541.752,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 12
+  },
+  {
+    "key": "garbage_14",
+    "label": "Collection point 14",
+    "category": "garbage",
+    "x": 662.0895,
+    "y": -623.0569,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 13
+  },
+  {
+    "key": "garbage_15",
+    "label": "Collection point 15",
+    "category": "garbage",
+    "x": 740.5894,
+    "y": -539.731,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 14
+  },
+  {
+    "key": "garbage_16",
+    "label": "Collection point 16",
+    "category": "garbage",
+    "x": 797.1172,
+    "y": -520.6215,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 15
+  },
+  {
+    "key": "garbage_17",
+    "label": "Collection point 17",
+    "category": "garbage",
+    "x": 835.7222,
+    "y": -599.8776,
+    "z": 16.3359,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 16
+  },
+  {
+    "key": "garbage_18",
+    "label": "Collection point 18",
+    "category": "garbage",
+    "x": 1276.0763,
+    "y": 188.9603,
+    "z": 19.6586,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 17
+  },
+  {
+    "key": "garbage_19",
+    "label": "Collection point 19",
+    "category": "garbage",
+    "x": 1299.7666,
+    "y": 214.5239,
+    "z": 19.5547,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 18
+  },
+  {
+    "key": "garbage_20",
+    "label": "Collection point 20",
+    "category": "garbage",
+    "x": 1244.8755,
+    "y": 246.6298,
+    "z": 19.5547,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 19
+  },
+  {
+    "key": "garbage_21",
+    "label": "Collection point 21",
+    "category": "garbage",
+    "x": 1293.5852,
+    "y": 345.7444,
+    "z": 19.5547,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 20
+  },
+  {
+    "key": "garbage_22",
+    "label": "Collection point 22",
+    "category": "garbage",
+    "x": 1383.8431,
+    "y": 293.5231,
+    "z": 19.5547,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 21
+  },
+  {
+    "key": "garbage_23",
+    "label": "Collection point 23",
+    "category": "garbage",
+    "x": 1392.2594,
+    "y": 210.4175,
+    "z": 19.4574,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 22
+  },
+  {
+    "key": "garbage_24",
+    "label": "Collection point 24",
+    "category": "garbage",
+    "x": 2214.2256,
+    "y": 52.6979,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 23
+  },
+  {
+    "key": "garbage_25",
+    "label": "Collection point 25",
+    "category": "garbage",
+    "x": 2236.6643,
+    "y": 69.7013,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 24
+  },
+  {
+    "key": "garbage_26",
+    "label": "Collection point 26",
+    "category": "garbage",
+    "x": 2283.2935,
+    "y": 101.0556,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 25
+  },
+  {
+    "key": "garbage_27",
+    "label": "Collection point 27",
+    "category": "garbage",
+    "x": 2323.76,
+    "y": 59.8555,
+    "z": 26.4922,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 26
+  },
+  {
+    "key": "garbage_28",
+    "label": "Collection point 28",
+    "category": "garbage",
+    "x": 2361.855,
+    "y": -37.9262,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 27
+  },
+  {
+    "key": "garbage_29",
+    "label": "Collection point 29",
+    "category": "garbage",
+    "x": 2417.0471,
+    "y": 51.0469,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 28
+  },
+  {
+    "key": "garbage_30",
+    "label": "Collection point 30",
+    "category": "garbage",
+    "x": 2543.875,
+    "y": 27.6838,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 29
+  },
+  {
+    "key": "garbage_31",
+    "label": "Collection point 31",
+    "category": "garbage",
+    "x": 2334.4702,
+    "y": -52.8211,
+    "z": 26.4844,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 30
+  },
+  {
+    "key": "garbage_32",
+    "label": "Collection point 32",
+    "category": "garbage",
+    "x": 2275.9382,
+    "y": -69.1702,
+    "z": 26.5751,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 3,
+    "enabled": true,
+    "sort": 31
+  },
+  {
+    "key": "fishing_1",
+    "label": "Fishing area 1",
+    "category": "fishing",
+    "x": 2198.52,
+    "y": -134.17,
+    "z": 0,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 5,
+    "enabled": true,
+    "vertices": [
+      {
+        "x": 2198.52,
+        "y": -134.17
+      },
+      {
+        "x": 2261.93,
+        "y": -168.41
+      },
+      {
+        "x": 2289.64,
+        "y": -253.11
+      },
+      {
+        "x": 2273.41,
+        "y": -262.94
+      },
+      {
+        "x": 2158.63,
+        "y": -257.8
+      },
+      {
+        "x": 2050.75,
+        "y": -259.49
+      },
+      {
+        "x": 1959.17,
+        "y": -281.53
+      },
+      {
+        "x": 1907.45,
+        "y": -255.63
+      },
+      {
+        "x": 1889.56,
+        "y": -225.47
+      },
+      {
+        "x": 1887.47,
+        "y": -109.2
+      },
+      {
+        "x": 1949.46,
+        "y": -15.68
+      },
+      {
+        "x": 2028.52,
+        "y": -14.46
+      },
+      {
+        "x": 2136.11,
+        "y": -22.56
+      },
+      {
+        "x": 2133.91,
+        "y": -80.19
+      },
+      {
+        "x": 2157.98,
+        "y": -117.9
+      }
+    ]
+  },
+  {
+    "key": "fishing_2",
+    "label": "Fishing area 2",
+    "category": "fishing",
+    "x": -1622.56,
+    "y": 1380.55,
+    "z": 0,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 5,
+    "enabled": true,
+    "vertices": [
+      {
+        "x": -1622.56,
+        "y": 1380.55
+      },
+      {
+        "x": -1615.35,
+        "y": 1389.17
+      },
+      {
+        "x": -1618.07,
+        "y": 1404.81
+      },
+      {
+        "x": -1619.05,
+        "y": 1416.39
+      },
+      {
+        "x": -1633.08,
+        "y": 1431.09
+      },
+      {
+        "x": -1644.49,
+        "y": 1432.32
+      },
+      {
+        "x": -1657.95,
+        "y": 1434.25
+      },
+      {
+        "x": -1659.04,
+        "y": 1436.64
+      },
+      {
+        "x": -1644.89,
+        "y": 1434.41
+      },
+      {
+        "x": -1633.46,
+        "y": 1434.56
+      },
+      {
+        "x": -1616.03,
+        "y": 1417.3
+      },
+      {
+        "x": -1615.91,
+        "y": 1405.47
+      },
+      {
+        "x": -1611.96,
+        "y": 1389.02
+      },
+      {
+        "x": -1620.83,
+        "y": 1379.85
+      }
+    ]
+  },
+  {
+    "key": "fishing_3",
+    "label": "Fishing area 3",
+    "category": "fishing",
+    "x": -642.99,
+    "y": 1286.85,
+    "z": 0,
+    "angle": 0,
+    "interior": 0,
+    "world": 0,
+    "radius": 5,
+    "enabled": true,
+    "vertices": [
+      {
+        "x": -642.99,
+        "y": 1286.85
+      },
+      {
+        "x": -654.32,
+        "y": 1311.75
+      },
+      {
+        "x": -635.92,
+        "y": 1342.86
+      },
+      {
+        "x": -631.12,
+        "y": 1342.2
+      },
+      {
+        "x": -640.33,
+        "y": 1327.54
+      },
+      {
+        "x": -648.79,
+        "y": 1313.63
+      },
+      {
+        "x": -623.97,
+        "y": 1321.82
+      },
+      {
+        "x": -621.75,
+        "y": 1318.33
+      },
+      {
+        "x": -646.03,
+        "y": 1307.71
+      },
+      {
+        "x": -639.78,
+        "y": 1293.19
+      },
+      {
+        "x": -616.58,
+        "y": 1300.96
+      },
+      {
+        "x": -615.34,
+        "y": 1296.62
+      },
+      {
+        "x": -635.98,
+        "y": 1287.67
+      },
+      {
+        "x": -628.69,
+        "y": 1272.99
+      },
+      {
+        "x": -614.23,
+        "y": 1259.35
+      },
+      {
+        "x": -615.41,
+        "y": 1257.04
+      },
+      {
+        "x": -631.17,
+        "y": 1270.83
+      }
+    ]
+  }
+]

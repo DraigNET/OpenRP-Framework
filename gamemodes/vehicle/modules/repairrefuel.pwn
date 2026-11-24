@@ -12,7 +12,7 @@
 //   type 2 airport      only aircraft
 //   type 3 boat         only boats
 //   type 4 faction      only vehicles of the faction type in "faction type" (0 law enforcement, 3 EMS,
-//                       8 public works, 10 federal ... see the FACTION_TYPE_ defines), used by members
+//                       10 federal ... see the FACTION_TYPE_ defines), used by members
 //
 // /rprf repairs the body, refuels to full and does a full service (oil, engine, fuel tank).
 
@@ -139,46 +139,13 @@ RPRF_ClearEntity(index) {
 	return true ;
 }
 
-// Loads the repair/refuel points from the database.
+// Startup/manual loads use the same stage-and-swap path as live configuration.
 RPRF_LoadEntities() {
-
-	for ( new i; i < MAX_RPRF_POINTS; i ++ ) {
-
-		RPRF_DestroyVisuals ( i ) ;
-		RPRF_ClearEntity ( i ) ;
-	}
-
-	print ( " * [RPRF] Loading repair & refuel points..." ) ;
-
-	inline RPRF_OnDataLoad() {
-
-		new loaded ;
-
-		for ( new i = 0, r = cache_num_rows(); i < r && i < MAX_RPRF_POINTS; i ++ ) {
-
-			new hidden ;
-
-			cache_get_value_name_int ( i, "rprf_id", RPRF_Points [ i ] [ E_RPRF_SQLID ] ) ;
-			cache_get_value_name ( i, "rprf_desc", RPRF_Points [ i ] [ E_RPRF_DESC ], 64 ) ;
-			cache_get_value_name_float ( i, "rprf_pos_x", RPRF_Points [ i ] [ E_RPRF_POS_X ] ) ;
-			cache_get_value_name_float ( i, "rprf_pos_y", RPRF_Points [ i ] [ E_RPRF_POS_Y ] ) ;
-			cache_get_value_name_float ( i, "rprf_pos_z", RPRF_Points [ i ] [ E_RPRF_POS_Z ] ) ;
-			cache_get_value_name_int ( i, "rprf_type", RPRF_Points [ i ] [ E_RPRF_TYPE ] ) ;
-			cache_get_value_name_int ( i, "rprf_faction_type", RPRF_Points [ i ] [ E_RPRF_FACTION_TYPE ] ) ;
-			cache_get_value_name_int ( i, "rprf_hidden", hidden ) ;
-
-			RPRF_Points [ i ] [ E_RPRF_HIDDEN ] = ( hidden != 0 ) ;
-
-			RPRF_CreateVisuals ( i ) ;
-			loaded ++ ;
-		}
-
-		printf ( " * [RPRF] Loaded %d repair & refuel points.", loaded ) ;
-	}
-
-	MySQL_TQueryInline ( mysql, using inline RPRF_OnDataLoad, "SELECT * FROM rprf_points ORDER BY rprf_id ASC", "" ) ;
-
-	return true ;
+    if(!Runtime_EntitiesReady()) return 1;
+    if(Runtime_ConfigurationBusy()) return 0;
+    if(!Runtime_StageRPRF()) return 0;
+    if(!Runtime_ActivateRPRFStage()) { Runtime_CancelRPRFStage(); return 0; }
+    return Runtime_CommitRPRF();
 }
 
 // /rprf - uses a repair or refuel point.
@@ -280,13 +247,14 @@ static RPRF_AdminUsage(playerid) {
 	SendClientMessage ( playerid, COLOR_GRAD0, "create [type] [faction type] [description] (at your position) | delete [id] | move [id] | rename [id] [description]" ) ;
 	SendClientMessage ( playerid, COLOR_GRAD0, "hidden [id] [0/1] (hidden points only show up close by) | goto [id]" ) ;
 	SendClientMessage ( playerid, COLOR_INFO, "Types: 1 dockworker, 2 airport (aircraft), 3 boat, 4 faction." ) ;
-	SendClientMessage ( playerid, COLOR_INFO, "Faction type only matters for type 4 (use 0 otherwise): 0 law enforcement, 3 EMS, 8 public works, 10 federal." ) ;
+	SendClientMessage ( playerid, COLOR_INFO, "Faction type only matters for type 4 (use 0 otherwise): 0 law enforcement, 3 EMS, 10 federal." ) ;
 
 	return true ;
 }
 
 // /rprfadmin - (admin) manages the repair/refuel points.
 CMD:rprfadmin(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_LEAD ) {
 
@@ -502,4 +470,94 @@ CMD:rprfadmin(playerid, params[]) {
 	}
 
 	return RPRF_AdminUsage ( playerid ) ;
+}
+// Repair/refuel edits replace only changed visuals; servicing itself is immediate,
+// so no vehicle health, fuel or player inventory is reloaded with these records.
+static RuntimeRPRFStage[MAX_RPRF_POINTS][E_RPRF_DATA], bool:RuntimeRPRFChanged[MAX_RPRF_POINTS];
+
+Runtime_CancelRPRFStage() {
+    for(new i; i<MAX_RPRF_POINTS; i++) if(RuntimeRPRFChanged[i]) {
+        if(IsValidDynamicPickup(RuntimeRPRFStage[i][E_RPRF_PICKUP])) DestroyDynamicPickup(RuntimeRPRFStage[i][E_RPRF_PICKUP]);
+        if(IsValidDynamic3DTextLabel(RuntimeRPRFStage[i][E_RPRF_LABEL])) DestroyDynamic3DTextLabel(RuntimeRPRFStage[i][E_RPRF_LABEL]);
+        RuntimeRPRFChanged[i]=false;
+    }
+    return 1;
+}
+
+// Metadata is in the same statement as the rows, detecting concurrent revisions.
+Runtime_QueryRPRF(query[],size) {
+    format(query,size,"SELECT -1 rprf_id,'' rprf_desc,0 rprf_pos_x,0 rprf_pos_y,0 rprf_pos_z,0 rprf_type,-1 rprf_faction_type,0 rprf_hidden,s.revision FROM runtime_config_state s WHERE s.id=1 UNION ALL SELECT p.rprf_id,p.rprf_desc,p.rprf_pos_x,p.rprf_pos_y,p.rprf_pos_z,p.rprf_type,p.rprf_faction_type,p.rprf_hidden,s.revision FROM rprf_points p JOIN runtime_config_state s ON s.id=1 ORDER BY rprf_id");
+    return 1;
+}
+
+// Validate a coherent snapshot and allocate changed visuals without exposing them.
+Runtime_StageRPRF(expectedRevision=0,bool:fromCache=false) {
+    Runtime_CancelRPRFStage();
+    for(new i; i<MAX_RPRF_POINTS; i++) for(new c; c<E_RPRF_DATA; c++) RuntimeRPRFStage[i][E_RPRF_DATA:c]=0;
+    new Cache:result=MYSQL_INVALID_CACHE;
+    if(!fromCache) { new query[1024]; Runtime_QueryRPRF(query,sizeof query); result=mysql_query(mysql,query); }
+    if(!fromCache && !cache_is_valid(result)) return 0;
+    new rows=cache_num_rows()-1,revision;
+    if(rows<0 || rows>MAX_RPRF_POINTS) { if(!fromCache) cache_delete(result); return 0; }
+    cache_get_value_name_int(0,"revision",revision);
+    if(expectedRevision && expectedRevision!=revision) { if(!fromCache) cache_delete(result); return 0; }
+    // Reserve every old persistent ID before placing new rows into free slots.
+    for(new row=1; row<=rows; row++) {
+        new id; cache_get_value_name_int(row,"rprf_id",id);
+        new index=RPRF_GetBySqlId(id);
+        if(index!=-1) RuntimeRPRFStage[index]=RPRF_Points[index];
+    }
+    for(new row=1; row<=rows; row++) {
+        new data[E_RPRF_DATA],hidden,description[256];
+        cache_get_value_name_int(row,"rprf_id",data[E_RPRF_SQLID]);
+        cache_get_value_name(row,"rprf_desc",description,sizeof description);
+        cache_get_value_name_float(row,"rprf_pos_x",data[E_RPRF_POS_X]);
+        cache_get_value_name_float(row,"rprf_pos_y",data[E_RPRF_POS_Y]);
+        cache_get_value_name_float(row,"rprf_pos_z",data[E_RPRF_POS_Z]);
+        cache_get_value_name_int(row,"rprf_type",data[E_RPRF_TYPE]);
+        cache_get_value_name_int(row,"rprf_faction_type",data[E_RPRF_FACTION_TYPE]);
+        cache_get_value_name_int(row,"rprf_hidden",hidden);
+        new bool:valid=(data[E_RPRF_SQLID]>0 && strlen(description)>0 && strlen(description)<64 && strfind(description,"{")==-1 && strfind(description,"\n")==-1 && strfind(description,"\r")==-1 && floatabs(data[E_RPRF_POS_X])<=20000.0 && floatabs(data[E_RPRF_POS_Y])<=20000.0 && floatabs(data[E_RPRF_POS_Z])<=20000.0 && data[E_RPRF_TYPE]>=1 && data[E_RPRF_TYPE]<=4 && hidden>=0 && hidden<=1);
+        if(data[E_RPRF_TYPE]==4) {
+            switch(data[E_RPRF_FACTION_TYPE]) { case 0,1,2,3,4,5,6,7,10: {} default: valid=false; }
+        } else if(data[E_RPRF_FACTION_TYPE]!=-1) valid=false;
+        if(!valid) { if(!fromCache) cache_delete(result); Runtime_CancelRPRFStage(); return 0; }
+        format(data[E_RPRF_DESC],64,"%s",description); data[E_RPRF_HIDDEN]=(hidden==1);
+        new index=RPRF_GetBySqlId(data[E_RPRF_SQLID]),bool:same=(index!=-1);
+        if(same) {
+            for(new c; c<E_RPRF_PICKUP; c++) if(data[E_RPRF_DATA:c]!=RPRF_Points[index][E_RPRF_DATA:c]) { same=false; break; }
+            same=same && IsValidDynamicPickup(RPRF_Points[index][E_RPRF_PICKUP]) && IsValidDynamic3DTextLabel(RPRF_Points[index][E_RPRF_LABEL]);
+        }
+        if(same) continue;
+        if(index==-1) for(new i; i<MAX_RPRF_POINTS; i++) if(!RuntimeRPRFStage[i][E_RPRF_SQLID]) { index=i; break; }
+        if(index==-1) { if(!fromCache) cache_delete(result); Runtime_CancelRPRFStage(); return 0; }
+        RuntimeRPRFStage[index]=data; RuntimeRPRFChanged[index]=true;
+        RuntimeRPRFStage[index][E_RPRF_PICKUP]=CreateDynamicPickup(1370,1,data[E_RPRF_POS_X],data[E_RPRF_POS_Y],data[E_RPRF_POS_Z],.worldid=RT_STAGING_WORLD,.streamdistance=hidden?7.5:50.0);
+        RuntimeRPRFStage[index][E_RPRF_LABEL]=CreateDynamic3DTextLabel(sprintf("[%s]\n{DEDEDE}Available commands: /rprf",description),COLOR_FACTION,data[E_RPRF_POS_X],data[E_RPRF_POS_Y],data[E_RPRF_POS_Z],hidden?7.5:10.0,.worldid=RT_STAGING_WORLD,.testlos=true);
+        if(!IsValidDynamicPickup(RuntimeRPRFStage[index][E_RPRF_PICKUP]) || !IsValidDynamic3DTextLabel(RuntimeRPRFStage[index][E_RPRF_LABEL])) { if(!fromCache) cache_delete(result); Runtime_CancelRPRFStage(); return 0; }
+    }
+    if(!fromCache) cache_delete(result);
+    return 1;
+}
+
+// The all-worlds sentinel clears Streamer's world set and returns false; check
+// its final state instead. New handles stay hidden until this final callback.
+Runtime_ActivateRPRFStage() {
+    new worlds[]={-1};
+    for(new i; i<MAX_RPRF_POINTS; i++) if(RuntimeRPRFChanged[i]) {
+        if(!IsValidDynamicPickup(RuntimeRPRFStage[i][E_RPRF_PICKUP]) || !IsValidDynamic3DTextLabel(RuntimeRPRFStage[i][E_RPRF_LABEL])) return 0;
+        Streamer_SetArrayData(STREAMER_TYPE_PICKUP,RuntimeRPRFStage[i][E_RPRF_PICKUP],E_STREAMER_WORLD_ID,worlds);
+        Streamer_SetArrayData(STREAMER_TYPE_3D_TEXT_LABEL,RuntimeRPRFStage[i][E_RPRF_LABEL],E_STREAMER_WORLD_ID,worlds);
+        if(Streamer_GetArrayDataLength(STREAMER_TYPE_PICKUP,RuntimeRPRFStage[i][E_RPRF_PICKUP],E_STREAMER_WORLD_ID)!=-1 || Streamer_GetArrayDataLength(STREAMER_TYPE_3D_TEXT_LABEL,RuntimeRPRFStage[i][E_RPRF_LABEL],E_STREAMER_WORLD_ID)!=-1) return 0;
+    }
+    return 1;
+}
+
+// Commit only after every family and world adapter has succeeded.
+Runtime_CommitRPRF() {
+    for(new i; i<MAX_RPRF_POINTS; i++) {
+        if(RPRF_Points[i][E_RPRF_SQLID]>0 && (!RuntimeRPRFStage[i][E_RPRF_SQLID] || RuntimeRPRFChanged[i])) RPRF_DestroyVisuals(i);
+        RPRF_Points[i]=RuntimeRPRFStage[i]; RuntimeRPRFChanged[i]=false;
+    }
+    return 1;
 }

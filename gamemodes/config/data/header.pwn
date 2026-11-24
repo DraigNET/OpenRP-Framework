@@ -27,26 +27,26 @@ enum {
 
 
 // ELS
-#define LS_GYM_EXT_X (0.0)
-#define LS_GYM_EXT_Y (0.0)
-#define LS_GYM_EXT_Z (-30.0)
+#define LS_GYM_EXT_X (RuntimeLocations[RT_LOC_GYM_LS][RLOC_X]) // Cached database setting; edit through ACP.
+#define LS_GYM_EXT_Y (RuntimeLocations[RT_LOC_GYM_LS][RLOC_Y]) // Cached database setting; edit through ACP.
+#define LS_GYM_EXT_Z (RuntimeLocations[RT_LOC_GYM_LS][RLOC_Z]) // Cached database setting; edit through ACP.
 
 // Little Mexico
-#define SF_GYM_EXT_X (0.0)
-#define SF_GYM_EXT_Y (0.0)
-#define SF_GYM_EXT_Z (-30.0)
+#define SF_GYM_EXT_X (RuntimeLocations[RT_LOC_GYM_SF][RLOC_X]) // Cached database setting; edit through ACP.
+#define SF_GYM_EXT_Y (RuntimeLocations[RT_LOC_GYM_SF][RLOC_Y]) // Cached database setting; edit through ACP.
+#define SF_GYM_EXT_Z (RuntimeLocations[RT_LOC_GYM_SF][RLOC_Z]) // Cached database setting; edit through ACP.
 
 // EC Gym
-#define LV_GYM_EXT_X (0.0)
-#define LV_GYM_EXT_Y (0.0)
-#define LV_GYM_EXT_Z (-30.0)
+#define LV_GYM_EXT_X (RuntimeLocations[RT_LOC_GYM_LV][RLOC_X]) // Cached database setting; edit through ACP.
+#define LV_GYM_EXT_Y (RuntimeLocations[RT_LOC_GYM_LV][RLOC_Y]) // Cached database setting; edit through ACP.
+#define LV_GYM_EXT_Z (RuntimeLocations[RT_LOC_GYM_LV][RLOC_Z]) // Cached database setting; edit through ACP.
 
 // Non enterable
 
-#define GANTON_GYM_EXT_X (0.0)
-#define GANTON_GYM_EXT_Y (0.0)
-#define GANTON_GYM_EXT_Z (-30.0)
+#define GANTON_GYM_EXT_X (RuntimeLocations[RT_LOC_GYM_GANTON][RLOC_X]) // Cached database setting; edit through ACP.
+#define GANTON_GYM_EXT_Y (RuntimeLocations[RT_LOC_GYM_GANTON][RLOC_Y]) // Cached database setting; edit through ACP.
+#define GANTON_GYM_EXT_Z (RuntimeLocations[RT_LOC_GYM_GANTON][RLOC_Z]) // Cached database setting; edit through ACP.
 
-#define BEACH_GYM_EXT_X (0.0)
-#define BEACH_GYM_EXT_Y (0.0)
-#define BEACH_GYM_EXT_Z (-30.0)
+#define BEACH_GYM_EXT_X (RuntimeLocations[RT_LOC_GYM_BEACH][RLOC_X]) // Cached database setting; edit through ACP.
+#define BEACH_GYM_EXT_Y (RuntimeLocations[RT_LOC_GYM_BEACH][RLOC_Y]) // Cached database setting; edit through ACP.
+#define BEACH_GYM_EXT_Z (RuntimeLocations[RT_LOC_GYM_BEACH][RLOC_Z]) // Cached database setting; edit through ACP.

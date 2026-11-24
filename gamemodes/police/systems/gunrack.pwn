@@ -262,8 +262,8 @@ CMD:gunrack(playerid)
 // Callback of the SWAT turnout browser: puts on the chosen SWAT uniform.
 mBrowser:swat_turnout(playerid, response, row, model, name[]) {
 
-	if ( response ) 
-	{
+	if (response) {
+        if(!FactionSkin_MenuCurrent(playerid) || !FactionSkin_CanWear(playerid,model) || !PlayerSquadHasRole(playerid,SQUAD_ROLE_TACTICAL) || !PlayerVar[playerid][E_PLAYER_FACTION_DUTY] || !FactionSkin_NearTurnoutVehicle(playerid)) return SendClientMessage(playerid,COLOR_ERROR,"Reopen turnout at an accessible faction vehicle; uniforms or permissions changed.");
         new factionid = Character [ playerid ] [ E_CHARACTER_FACTIONID ] ;
         new faction_enum_id = Faction_GetEnumID(factionid); 
 
@@ -437,8 +437,8 @@ CMD:swat(playerid)
 // Callback of the fire turnout browser: puts on the chosen fire uniform.
 mBrowser:fire_turnout(playerid, response, row, model, name[]) {
 
-	if ( response ) 
-	{
+	if (response) {
+        if(!FactionSkin_MenuCurrent(playerid) || !FactionSkin_CanWear(playerid,model) || !IsPlayerInFactionType(playerid,FACTION_TYPE_EMS,true) || !FactionSkin_NearTurnoutVehicle(playerid)) return SendClientMessage(playerid,COLOR_ERROR,"Reopen turnout at an accessible faction vehicle; uniforms or permissions changed.");
         //new factionid = Character [ playerid ] [ E_CHARACTER_FACTIONID ] ;
         //new faction_enum_id = Faction_GetEnumID(factionid); 
         new vehicleid = PlayerVar[playerid][E_PLAYER_SWAT_VEHICLE];

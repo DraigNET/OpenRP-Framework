@@ -6,34 +6,11 @@
 // ============================================================================
 
 // Loads the faction that owns the chop shop from the server settings and creates its label.
-ChopShop_LoadEntities() {
-
-	new factionid = Server [ E_SERVER_CHOPSHOP_FACTIONID ] ;
-	new faction_name [ 64 ] ;
-
-	new faction_enum_id = Faction_GetEnumID(factionid ); 
-
-	if ( faction_enum_id == INVALID_FACTION_ID ) {
-
-		format ( faction_name, sizeof ( faction_name ), "Unowned" ) ;
-	}
-
-	else format ( faction_name, sizeof ( faction_name ), "%s", Faction [ faction_enum_id ] [ E_FACTION_ABBREV ] ) ;
-
-	Server [ E_SERVER_CHOPSHOP_LABEL ] = CreateDynamic3DTextLabel(
-		sprintf("[%s's Chop Shop]{DEDEDE}\nAvailable Commands: /chopcar, /buylockpick",
-		faction_name ), 0x5B381FFF, CHOPSHOP_X, CHOPSHOP_Y, CHOPSHOP_Z, 10.0, .testlos = false 
-	) ;	
-
-	UpdateChopShopLabel();
-
-	CreateDynamicMapIcon(CHOPSHOP_X, CHOPSHOP_Y, CHOPSHOP_Z, 37, 0xFFFFFFFF);
-
-	return true ;
-}
+ChopShop_LoadEntities() { return UpdateChopShopLabel(); }
 
 // Redraws the chop shop's 3D label with the owning faction's name.
 UpdateChopShopLabel() {
+    if(!IsValidDynamic3DTextLabel(Server[E_SERVER_CHOPSHOP_LABEL])) return 1;
 
 	new string [ 256 ] ;
 
@@ -129,7 +106,7 @@ CMD:chopshopcollect(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Your faction doesn't own the chop shop.");
 	}
 
-	if ( ! IsPlayerInRangeOfPoint(playerid, 5.0, CHOPSHOP_X, CHOPSHOP_Y, CHOPSHOP_Z) ) {
+	if ( ! Runtime_AtLocation(playerid,RT_LOC_CHOPSHOP) ) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "You're not near the chopshop!");
 	}
 

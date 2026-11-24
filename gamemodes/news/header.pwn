@@ -13,7 +13,7 @@
 
 IsPlayerInNewsFaction(playerid, bool:onduty=false)
 {
-	return IsPlayerInFactionType(playerid, FACTION_TYPE_NEWS, onduty) || IsPlayerInFirmField(playerid, FIRM_FIELD_MEDIA, onduty);
+	return IsPlayerInFactionType(playerid, FACTION_TYPE_NEWS, onduty) || (IsPlayerInFirmField(playerid, FIRM_FIELD_MEDIA, onduty) && Firm_PlayerHasPerm(playerid,FIRM_PERM_FIELD_TOOLS));
 }
 
 // The outlet a reporter is currently reporting for - a Media firm's

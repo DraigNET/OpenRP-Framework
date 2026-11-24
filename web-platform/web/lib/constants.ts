@@ -99,21 +99,7 @@ export const FACTION_TIER_NAME: Record<number, string> = {
 export const factionTierName = (t: number): string =>
   FACTION_TIER_NAME[t] ?? `Tier ${t}`;
 
-/* Faction squads mirror gamemodes/faction/squads.pwn. Other factions start empty. */
-export const FACTION_SQUADS_BY_ABBREV: Record<string, Record<number, string>> = {
-  SAPD: { 10: "SWAT", 11: "Traffic", 12: "Detectives" },
-  FDSA: { 20: "Fire", 21: "EMS", 22: "Rescue" },
-};
-// Add another faction's abbreviation and unique squad IDs above after adding them in Pawn.
-export const FACTION_SQUADS: Record<number, Record<number, string>> = {};
-/** The squads a faction can assign: its own list by abbreviation, else the list for its type. */
-export function squadsForFaction(
-  fType: number,
-  abbrev?: string | null,
-): Record<number, string> {
-  const byAbbrev = abbrev ? FACTION_SQUADS_BY_ABBREV[abbrev.toUpperCase()] : undefined;
-  return byAbbrev ?? FACTION_SQUADS[fType] ?? {};
-}
+// Squad data is loaded by runtime-squads.ts; UI-only option formatting stays here.
 /** Dropdown options for a faction's squads, [id, name]. A stored id that isn't in the list is kept so saving can't silently change it. */
 export function squadOptions(
   map: Record<number, string>,
@@ -123,21 +109,6 @@ export function squadOptions(
   if (current && !map[current]) opts.push([current, `Unknown squad ${current}`]);
   return opts;
 }
-/** Resolve a member's squad names from their up-to-three squad ids. */
-export function factionSquadNames(
-  fType: number,
-  abbrev: string | null | undefined,
-  ...squads: number[]
-): string[] {
-  const map = squadsForFaction(fType, abbrev);
-  return squads.filter((s) => s > 0 && map[s]).map((s) => map[s]);
-}
-/** All squad names available to a faction (for the roster header). */
-export const factionSquadList = (
-  fType: number,
-  abbrev?: string | null,
-): string[] => Object.values(squadsForFaction(fType, abbrev));
-
 /* ── 911 call types (call_type) ────────────────────── */
 export const CALL_TYPE = {
   POLICE: 1,

@@ -292,7 +292,7 @@ Faction_LoadEntities() {
 		FactionSpawns_Load(); // extra spawn points (/addfspawn)
 
 		print(" * [FACTIONS] Now loading all faction skins...") ;
-		FactionSkin_LoadEntitiesNew(); // new way
+		RuntimeConfig_EntitiesReady(); // Runtime validation loads equipment after factions exist.
 		Faction_SetupCars();
 		//DockEntity_LoadFromDB();
 	}

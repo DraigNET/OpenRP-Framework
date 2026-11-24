@@ -42,7 +42,7 @@ static const WardrobeType[E_WARDROBE_TYPE][E_WARDROBE_TYPE_DATA] =
 #define WARDROBE_LABEL_RADIUS       5.0
 #define WARDROBE_USE_RADIUS         2.5
 #define WARDROBE_CAPACITY           15
-#define WARDROBE_COST               750
+#define WARDROBE_COST (Runtime_Int(RT_PROPERTIES_WARDROBE_FEE)) // Cached database setting; edit through ACP.
 
 static enum E_WARDROBE_DATA
 {
@@ -575,13 +575,16 @@ CMD:wardrobe(playerid)
 
     foreach (new targetid: Player) 
 	{
-        if (IsPlayerPlaying(targetid) && PlayerVar[targetid][E_PLAYER_USING_WARDROBE] && PlayerVar[playerid][E_PLAYER_CURRENT_WARDROBE] == i)
+        if (IsPlayerPlaying(targetid) && PlayerVar[targetid][E_PLAYER_USING_WARDROBE] && PlayerVar[targetid][E_PLAYER_CURRENT_WARDROBE] == i)
         {
             return SendServerMessage(playerid, COLOR_ERROR, "Error", "A3A3A3", "Someone else is using this wardrobe just now.");
         }
 	}
 
-    // TODO: Access Checks, etc.
+    // Public/property wardrobes use owned skins. Faction/temporary variants
+    // are not implemented and cannot be enabled by inserting a raw SQL row.
+    if(Wardrobe[i][E_WARDROBE_TYPE_ID]!=WARDROBE_TYPE_DEFAULT && Wardrobe[i][E_WARDROBE_TYPE_ID]!=WARDROBE_TYPE_PROPERTY)
+        return SendClientMessage(playerid,COLOR_ERROR,"This wardrobe type is unavailable. Use a normal wardrobe or faction locker.");
     Player_EnterWardrobe(playerid, i);
     return true;
 }

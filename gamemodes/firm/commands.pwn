@@ -17,10 +17,10 @@ ShowFirmCommands(playerid)
     }
 
     SendClientMessage(playerid, 0x5FB9D1FF, "[ ___________ Firm Commands ___________ ]");
-    SendClientMessage(playerid, 0x58DD85FF, "[GENERAL]:{B2FFCD} /firm, /firmhelp, /firmduty, /fc, /firmbank, /firmmembers");
+    SendClientMessage(playerid, 0x58DD85FF, "[GENERAL]:{B2FFCD} /firm, /firmhelp, /firmduty, /fc, /firmbank, /firmmembers, /firmcar");
     SendClientMessage(playerid, 0x58DD85FF, "[MEMBERS]:{B2FFCD} /firminvite, /firmkick, /firmrank, /firmresign, /firmclose");
     SendClientMessage(playerid, 0x58DD85FF, "[OFFLINE]:{B2FFCD} /firmokick [charid], /firmorank [charid] [1-4]");
-    SendClientMessage(playerid, 0x58DD85FF, "[ADMINISTRATION]:{B2FFCD} /firmcreate [field] [abbrev] [name]");
+    SendClientMessage(playerid, 0x58DD85FF, "[ADMINISTRATION]:{B2FFCD} /firmlicense [field], /firmcreate [field] [abbrev] [name]");
     SendClientMessage(playerid, 0x58DD85FF, "[FIELDS]:{B2FFCD} mechanic, lawyer, security, transit, logistics, media, usedcars, realestate");
 
     if (Firm_PlayerCanUseFieldTool(playerid, FIRM_FIELD_MECHANIC))
@@ -45,7 +45,7 @@ ShowFirmCommands(playerid)
 
     if (CanUseLogisticsTools(playerid))
     {
-        SendClientMessage(playerid, 0x9ACD32FF, "[LOGISTICS]:{DEDEDE} /tradereport - see the best-paying commodity routes right now");
+        SendClientMessage(playerid, 0x9ACD32FF, "[LOGISTICS]:{DEDEDE} /truckerjob, /loadtruck, /canceldelivery - the shared crate delivery job");
     }
 
     if (IsPlayerInFirmField(playerid, FIRM_FIELD_USEDCARS))
@@ -197,10 +197,7 @@ CMD:firmbank(playerid, params[])
 
     new firm_enum_id = Firm_GetEnumID(PlayerFirm[playerid][E_PLAYER_FIRM_ID]);
 
-    if (firm_enum_id == INVALID_FIRM_ID)
-    {
-        return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", "Your firm could not be found in memory.");
-    }
+    if (!Firm_IsActive(firm_enum_id)) return SendClientMessage(playerid,COLOR_ERROR,"Your firm is not active.");
 
     if (isnull(params))
     {
@@ -226,8 +223,8 @@ CMD:firmbank(playerid, params[])
             return SendServerMessage(playerid, COLOR_ERROR, "Firm Bank", "A3A3A3", sprintf("You don't have $%s in cash.", IntegerWithDelimiter(amount)));
         }
 
+        if(!Firm_AddBankMoney(firm_enum_id, amount, sprintf("%s deposited cash", ReturnRPName(playerid))))return SendClientMessage(playerid,COLOR_ERROR,"The firm bank balance limit would be exceeded.");
         TakePlayerCash(playerid, amount, "Firm bank deposit");
-        Firm_AddBankMoney(firm_enum_id, amount, sprintf("%s deposited cash", ReturnRPName(playerid)));
         AddLogEntry(playerid, LOG_TYPE_FIRM, sprintf("Deposited $%s into firm bank (%s)", IntegerWithDelimiter(amount), Firm[firm_enum_id][E_FIRM_NAME]), true);
 
         return SendServerMessage(playerid, COLOR_BLUE, "Firm Bank", "A3A3A3", sprintf("You deposited $%s into the firm bank.", IntegerWithDelimiter(amount)));
@@ -240,6 +237,7 @@ CMD:firmbank(playerid, params[])
             return SendServerMessage(playerid, COLOR_ERROR, "Firm Bank", "A3A3A3", "You don't have permission to withdraw firm funds.");
         }
 
+        if(GetPlayerCash(playerid)>2000000000-amount)return SendClientMessage(playerid,COLOR_ERROR,"Your cash balance limit would be exceeded.");
         if (!Firm_TakeBankMoney(firm_enum_id, amount, sprintf("%s withdrew cash", ReturnRPName(playerid))))
         {
             return SendServerMessage(playerid, COLOR_ERROR, "Firm Bank", "A3A3A3", sprintf("The firm bank doesn't have enough funds. Balance: $%s.", IntegerWithDelimiter(Firm[firm_enum_id][E_FIRM_BANK])));
@@ -392,8 +390,12 @@ CMD:firminvite(playerid, params[])
         "SELECT COUNT(*) AS total FROM firm_members WHERE firm_id = %d",
         PlayerFirm[playerid][E_PLAYER_FIRM_ID]);
 
+    new inviter_character=Character[playerid][E_CHARACTER_ID],invitee_character=Character[targetid][E_CHARACTER_ID];
+    new inviter_session=FirmSession[playerid],invitee_session=FirmSession[targetid],invited_firm=Firm[firm_enum_id][E_FIRM_ID];
     inline Firm_OnInviteCheck()
     {
+        if(!Firm_SameSession(playerid,inviter_character,inviter_session) || !Firm_SameSession(targetid,invitee_character,invitee_session))return true;
+        if(!Firm_IsActive(firm_enum_id) || Firm[firm_enum_id][E_FIRM_ID]!=invited_firm || !Firm_PlayerHasPerm(playerid,FIRM_PERM_INVITE))return true;
         new total;
         cache_get_value_name_int(0, "total", total);
 
@@ -417,6 +419,8 @@ CMD:firminvite(playerid, params[])
         {
             #pragma unused dialogid, listitem, inputtext
 
+            if(!Firm_SameSession(playerid,inviter_character,inviter_session) || !Firm_SameSession(pid,invitee_character,invitee_session))return true;
+            if(!Firm_IsActive(firm_enum_id) || Firm[firm_enum_id][E_FIRM_ID]!=invited_firm || !Firm_PlayerHasPerm(playerid,FIRM_PERM_INVITE))return SendClientMessage(pid,COLOR_ERROR,"That firm invite is no longer valid.");
             if (!response)
             {
                 if (IsPlayerConnected(playerid))
@@ -441,13 +445,7 @@ CMD:firminvite(playerid, params[])
                 return Firm_SendAccessDenied(pid);
             }
 
-            Firm_AddMember(Firm[firm_enum_id][E_FIRM_ID], Character[pid][E_CHARACTER_ID], 3, Firm_GetDefaultRankPerms(3));
-            Firm_Log(Firm[firm_enum_id][E_FIRM_ID], Character[playerid][E_CHARACTER_ID], 3, sprintf("%s invited %s", ReturnRPName(playerid), ReturnRPName(pid)));
-            AddLogEntry(playerid, LOG_TYPE_FIRM, sprintf("Invited %s to firm %s", ReturnRPName(pid), Firm[firm_enum_id][E_FIRM_NAME]), true);
-
-            Firm_SendMessage(Firm[firm_enum_id][E_FIRM_ID], sprintf("[Firm] %s has joined the firm as an Employee.", ReturnRPName(pid)));
-            SendServerMessage(pid, COLOR_BLUE, "Firm", "A3A3A3", sprintf("You joined %s. Use /firmduty to go on duty.", Firm[firm_enum_id][E_FIRM_NAME]));
-            return true;
+            return Firm_AcceptInvite(pid,invited_firm,inviter_character);
         }
 
         Dialog_ShowCallback(targetid, using inline Firm_InviteResponse, DIALOG_STYLE_MSGBOX, "Firm Invite", invite_text, "Accept", "Decline");
@@ -613,8 +611,10 @@ CMD:firmokick(playerid, params[])
         "SELECT fm.firm_rank, c.player_name FROM firm_members fm INNER JOIN characters c ON c.player_id = fm.character_id WHERE fm.firm_id = %d AND fm.character_id = %d LIMIT 1",
         firm_sql_id, character_id);
 
+    new actor_character=Character[playerid][E_CHARACTER_ID],actor_session=FirmSession[playerid];
     inline Firm_OnOfflineKick()
     {
+        if(!Firm_SameSession(playerid,actor_character,actor_session) || PlayerFirm[playerid][E_PLAYER_FIRM_ID]!=firm_sql_id || !Firm_PlayerHasPerm(playerid,FIRM_PERM_KICK))return true;
         if (!cache_num_rows())
         {
             return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", "No firm member was found with that character ID.");
@@ -686,8 +686,10 @@ CMD:firmorank(playerid, params[])
         "SELECT fm.firm_rank, c.player_name FROM firm_members fm INNER JOIN characters c ON c.player_id = fm.character_id WHERE fm.firm_id = %d AND fm.character_id = %d LIMIT 1",
         firm_sql_id, character_id);
 
+    new actor_character=Character[playerid][E_CHARACTER_ID],actor_session=FirmSession[playerid];
     inline Firm_OnOfflineRank()
     {
+        if(!Firm_SameSession(playerid,actor_character,actor_session) || PlayerFirm[playerid][E_PLAYER_FIRM_ID]!=firm_sql_id || !Firm_PlayerHasPerm(playerid,FIRM_PERM_RANKS))return true;
         if (!cache_num_rows())
         {
             return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", "No firm member was found with that character ID.");
@@ -797,17 +799,33 @@ CMD:firmclose(playerid, params[])
             return SendServerMessage(pid, COLOR_ERROR, "Firm", "A3A3A3", "This firm is no longer loaded.");
         }
 
-        Firm_SendMessage(firm_sql_id, sprintf("[Firm] %s has closed %s.", ReturnRPName(pid), firm_name));
-        Firm_Log(firm_sql_id, Character[pid][E_CHARACTER_ID], 7, sprintf("%s closed the firm", ReturnRPName(pid)));
-        AddLogEntry(pid, LOG_TYPE_FIRM, sprintf("Closed firm %s SQL %d", firm_name, firm_sql_id), true);
-        Firm_Close(close_enum_id);
-
-        SendServerMessage(pid, COLOR_BLUE, "Firm", "A3A3A3", sprintf("You closed %s.", firm_name));
-        return true;
+        if(FirmClosing[close_enum_id])return SendClientMessage(pid,COLOR_ERROR,"Closure is already being processed.");
+        FirmClosing[close_enum_id]=true;FirmRequestStarted[close_enum_id]=gettime();
+        new close_request=++FirmCloseSerial[close_enum_id];
+        new character_id=Character[pid][E_CHARACTER_ID],session=FirmSession[pid],query[160];
+        mysql_format(mysql,query,sizeof query,"CALL orp_firm_close(%d,%d)",firm_sql_id,character_id);
+        inline Firm_Closed() {
+            if(Firm[close_enum_id][E_FIRM_ID]!=firm_sql_id || FirmCloseSerial[close_enum_id]!=close_request || !FirmClosing[close_enum_id])return 1;
+            new id;new result[64];if(cache_num_rows()){cache_get_value_name_int(0,"firm_id",id);cache_get_value_name(0,"result",result,sizeof result);}
+            if(id!=firm_sql_id) {
+                if(Firm[close_enum_id][E_FIRM_ID]==firm_sql_id)FirmClosing[close_enum_id]=false;
+                if(Firm_SameSession(pid,character_id,session))SendClientMessage(pid,COLOR_ERROR,"Cannot close: withdraw all firm funds and release ordinary firm vehicles with /firmcar release first.");
+                return 1;
+            }
+            new current=Firm_GetEnumID(firm_sql_id);
+            if(current!=INVALID_FIRM_ID) {
+                Firm_SendMessage(firm_sql_id,sprintf("[Firm] %s has been closed by its owner.",firm_name));
+                Firm_Log(firm_sql_id,character_id,7,"Owner closed the firm; membership removed transactionally");
+                Firm_Close(current);
+            }
+            if(Firm_SameSession(pid,character_id,session))SendClientMessage(pid,COLOR_INFO,"The firm has been closed.");
+            return 1;
+        }
+        MySQL_TQueryInline(mysql,using inline Firm_Closed,query,"");return 1;
     }
 
     Dialog_ShowCallback(playerid, using inline Firm_CloseConfirm, DIALOG_STYLE_MSGBOX, "Close Firm",
-        sprintf("Close %s?\n\nThis disables the firm and removes active member access. This cannot be undone by player command.", firm_name),
+        sprintf("Close %s?\n\nWithdraw funds and release ordinary firm vehicles first. Used-car stock returns to the scrapyard pool; real-estate stock returns to the server. Members lose access. This cannot be undone.", firm_name),
         "Close", "Cancel");
     return true;
 }
@@ -825,7 +843,7 @@ CMD:firmcreate(playerid, params[])
     if (sscanf(params, "s[16]s[8]s[64]", field_input, abbrev, name))
     {
         SendServerMessage(playerid, COLOR_ERROR, "Usage", "A3A3A3", "/firmcreate [field] [abbrev] [name]");
-        return SendClientMessage(playerid, 0xA3A3A3FF, "Fields: mechanic, lawyer, security, transit, logistics, media, usedcars, realestate. Names cannot contain spaces yet.");
+        return SendClientMessage(playerid, 0xA3A3A3FF, "Fields: mechanic, lawyer, security, transit, logistics, media, usedcars, realestate. Firm names may contain spaces.");
     }
 
     if (!IsAtGovFrontDesk(playerid))
@@ -862,86 +880,7 @@ CMD:firmcreate(playerid, params[])
         return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", sprintf("You need $%s in cash to register this firm.", IntegerWithDelimiter(fee)));
     }
 
-    new query[256];
-    mysql_format(mysql, query, sizeof(query),
-        "SELECT firm_id FROM firms WHERE (firm_name = '%e' OR firm_owner_char_id = %d) AND firm_status != %d LIMIT 1",
-        name, Character[playerid][E_CHARACTER_ID], FIRM_STATUS_CLOSED);
-
-    inline Firm_OnCreateCheck()
-    {
-        if (cache_num_rows())
-        {
-            return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", "That name is taken or you already own a non-closed firm.");
-        }
-
-        // Used car and real estate firms don't need an Administration Building license, anyone can start one.
-        if (field == FIRM_FIELD_USEDCARS || field == FIRM_FIELD_REALESTATE)
-        {
-            Firm_Create(playerid, name, abbrev, field);
-            return true;
-        }
-
-        new license_query[256];
-
-        switch (field)
-        {
-            case FIRM_FIELD_TRANSIT:
-            {
-                mysql_format(mysql, license_query, sizeof(license_query),
-                    "SELECT id FROM character_licenses WHERE character_id = %d AND license_type = 'transit' LIMIT 1",
-                    Character[playerid][E_CHARACTER_ID]);
-            }
-            case FIRM_FIELD_MECHANIC:
-            {
-                mysql_format(mysql, license_query, sizeof(license_query),
-                    "SELECT id FROM character_licenses WHERE character_id = %d AND license_type = 'mechanic' LIMIT 1",
-                    Character[playerid][E_CHARACTER_ID]);
-            }
-            case FIRM_FIELD_SECURITY:
-            {
-                mysql_format(mysql, license_query, sizeof(license_query),
-                    "SELECT id FROM character_licenses WHERE character_id = %d AND license_type = 'security_guard' LIMIT 1",
-                    Character[playerid][E_CHARACTER_ID]);
-            }
-            case FIRM_FIELD_LAWYER:
-            {
-                mysql_format(mysql, license_query, sizeof(license_query),
-                    "SELECT id FROM character_licenses WHERE character_id = %d AND license_type = 'lawyer' LIMIT 1",
-                    Character[playerid][E_CHARACTER_ID]);
-            }
-            case FIRM_FIELD_LOGISTICS:
-            {
-                mysql_format(mysql, license_query, sizeof(license_query),
-                    "SELECT id FROM character_licenses WHERE character_id = %d AND license_type = 'logistics' LIMIT 1",
-                    Character[playerid][E_CHARACTER_ID]);
-            }
-            case FIRM_FIELD_MEDIA:
-            {
-                mysql_format(mysql, license_query, sizeof(license_query),
-                    "SELECT id FROM character_licenses WHERE character_id = %d AND license_type = 'media' LIMIT 1",
-                    Character[playerid][E_CHARACTER_ID]);
-            }
-        }
-
-        inline Firm_OnLicenseCheck()
-        {
-            if (!cache_num_rows())
-            {
-                new required_license[32];
-                Firm_GetRequiredLicenseName(field, required_license, sizeof(required_license));
-                return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", sprintf("You need an approved %s license from the Administration Building before creating this firm.", required_license));
-            }
-
-            Firm_Create(playerid, name, abbrev, field);
-            return true;
-        }
-
-        MySQL_TQueryInline(mysql, using inline Firm_OnLicenseCheck, license_query, "");
-        return true;
-    }
-
-    MySQL_TQueryInline(mysql, using inline Firm_OnCreateCheck, query, "");
-    return true;
+    return Firm_Create(playerid,name,abbrev,field);
 }
 
 // Admin tool - hands the vehicle the player is standing in to a firm (by

@@ -1,0 +1,9 @@
+# Keep formatter input consistent across Windows checkouts and CI.
+* text=auto
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.json text eol=lf

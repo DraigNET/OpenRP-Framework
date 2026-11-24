@@ -14,6 +14,11 @@ public OnVehicleSpawn (vehicleid) {
 		return true ;
 	} 
 
+    // Automatic respawns use the current cached parking point, including ACP edits.
+    SetVehicleVirtualWorld(vehicleid,Vehicle[veh_enum_id][E_VEHICLE_VW]);
+    LinkVehicleToInterior(vehicleid,Vehicle[veh_enum_id][E_VEHICLE_INT]);
+    SetVehiclePos(vehicleid,Vehicle[veh_enum_id][E_VEHICLE_POS_X],Vehicle[veh_enum_id][E_VEHICLE_POS_Y],Vehicle[veh_enum_id][E_VEHICLE_POS_Z]);
+    SetVehicleZAngle(vehicleid,Vehicle[veh_enum_id][E_VEHICLE_POS_A]);
 	ORP_SetVehicleCanExplode(vehicleid, false);
 	SetVehicleHealth(vehicleid, 999);
 	Vehicle_SetDoorsEngineStatus(veh_enum_id );

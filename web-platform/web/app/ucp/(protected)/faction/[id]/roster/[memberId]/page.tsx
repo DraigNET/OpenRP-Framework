@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireUser } from '@/lib/dal'
-import { isGangFaction, FACTION_TIER_ID, squadsForFaction } from '@/lib/constants'
+import { isGangFaction, FACTION_TIER_ID, } from '@/lib/constants'
 import { FACTION_TIER } from '@/lib/data/attributes'
 import { EditMemberForm } from './EditMemberForm'
 
@@ -55,8 +55,10 @@ export default async function EditMemberPage({
       }}
       memberName={memberName}
       isGang={isGang}
-      squadMap={squadsForFaction(faction.faction_type, faction.faction_abbrev)}
+      squadMap={await loadFactionSquads(faction.faction_id)}
       tierOptions={tierOptions}
     />
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

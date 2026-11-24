@@ -11,7 +11,7 @@
 // Pilot_CanFlyVehicle, used by OnPlayerEnterVehicle). Faction, job and firm aircraft are not affected.
 
 #define PILOT_LICENSE_REQUIRED 	( true )
-#define SERVER_PILOT_FEE 		( 1500 )
+#define SERVER_PILOT_FEE (Runtime_Int(RT_LICENSES_PILOT_FEE)) // Cached database setting; edit through ACP.
 #define PILOT_TEST_X 			( 1957.5844 )
 #define PILOT_TEST_Y 			( -2183.7864 )
 #define PILOT_TEST_Z 			( 13.5469 )

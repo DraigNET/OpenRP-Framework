@@ -1,0 +1,9 @@
+export type RuntimeLocation = { key:string; category:string; label:string; x:number; y:number; z:number; angle:number; interior:number; world:number; radius:number; enabled:boolean; gpsEnabled:boolean; modelId:number; sortOrder:number; vertices:{x:number;y:number}[] }
+export type RuntimeModel = { modelId:number; cargoSlots:number; price:number|null; enabled:boolean }
+export type RuntimeSquad = { id:number; factionId:number; name:string; roles:number; enabled:boolean }
+export type RuntimeState = { revision:number; applied_revision:number; last_heartbeat:number; last_error:string; schema_version:number }
+export type RuntimeConfiguration = { state:RuntimeState; settings:Record<string,string|number>; locations:RuntimeLocation[]; models:RuntimeModel[]; squads:RuntimeSquad[] }
+export type RuntimeHistory = { id:string; revision:number; account_name:string; source:string; description:string; created_at:number }
+export type RuntimeEntityPatch = {type:string;id:number;record:Record<string,number|string>|null;expectedRecord?:Record<string,number|string>|null}
+export type RuntimePatch = { expectedRevision:number; entities?:RuntimeEntityPatch[]; settings?:Record<string,string|number>; locations?:RuntimeLocation[]; models?:RuntimeModel[]; squads?:RuntimeSquad[]; description?:string }
+export type RuntimeActionResult = { ok:boolean; error?:string; revision?:number; conflict?:boolean }

@@ -1,80 +1,31 @@
-// ============================================================================
-// File: jobs/fishing/data.pwn
-// Fishing spots: the areas where fishing is allowed. Uses stock-map coordinates.
-// ============================================================================
-
-// Fishing
-new FishArea[3];
-new Float:FishArray1[] = // Palomino
-{
-	2198.52, -134.17,
-	2261.93, -168.41,
-	2289.64, -253.11,
-	2273.41, -262.94,
-	2158.63, -257.80,
-	2050.75, -259.49,
-	1959.17, -281.53,
-	1907.45, -255.63,
-	1889.56, -225.47,
-	1887.47, -109.20,
-	1949.46, -15.68,
-	2028.52, -14.46,
-	2136.11, -22.56,
-	2133.91, -80.19,
-	2157.98, -117.90
-};
-
-new Float:FishArray2[] = // Pier69
-{
-	-1622.56, 1380.55,
-	-1615.35, 1389.17,
-	-1618.07, 1404.81,
-	-1619.05, 1416.39,
-	-1633.08, 1431.09,
-	-1644.49, 1432.32,
-	-1657.95, 1434.25,
-	-1659.04, 1436.64,
-	-1644.89, 1434.41,
-	-1633.46, 1434.56,
-	-1616.03, 1417.30,
-	-1615.91, 1405.47,
-	-1611.96, 1389.02,
-	-1620.83, 1379.85
-};
-
-new Float:FishArray3[] = // Fort Carson
-{
-	-642.99, 1286.85,
-	-654.32, 1311.75,
-	-635.92, 1342.86,
-	-631.12, 1342.20,
-	-640.33, 1327.54,
-	-648.79, 1313.63,
-	-623.97, 1321.82,
-	-621.75, 1318.33,
-	-646.03, 1307.71,
-	-639.78, 1293.19,
-	-616.58, 1300.96,
-	-615.34, 1296.62,
-	-635.98, 1287.67,
-	-628.69, 1272.99,
-	-614.23, 1259.35,
-	-615.41, 1257.04,
-	-631.17, 1270.83
-};
-
+// Fishing polygons are loaded from runtime_locations and their ordered vertices.
+// Replacing an area does not remove caught fish or change inventory.
+new FishArea[32], FishAreaCount;
 new FishNames[13][11] =
 {
 	"Carp", "Cat Fish", "Cod", "Conger Eel", "Dog Fish", "Herring",
 	"Pollack", "Salmon", "Sardine", "Shark", "Swordfish", "Trout", "Turtle"
 };
 
-hook OnGameModeInit() 
-{
-	//Load Fish Areas
-    FishArea[0] = CreateDynamicPolygon(FishArray1);
-	FishArea[1] = CreateDynamicPolygon(FishArray2);
-	FishArea[1] = CreateDynamicPolygon(FishArray3);
 
-	return 1;
+// Stage every polygon before releasing old handles; close the boundary explicitly.
+Runtime_RebuildFishing() {
+    new areas[32], count;
+    for(new i; i<RuntimeLocationCount; i++) {
+        if(RuntimeLocations[i][RLOC_CATEGORY]!=RT_CATEGORY_FISHING || !RuntimeLocations[i][RLOC_ENABLED]) continue;
+        if(count>=32) return 0;
+        new Float:points[(RT_MAX_VERTICES+1)*2], vertices=RuntimeLocations[i][RLOC_VERTICES];
+        for(new v; v<vertices; v++) { points[v*2]=RuntimeVertices[i][v][0]; points[v*2+1]=RuntimeVertices[i][v][1]; }
+        points[vertices*2]=points[0]; points[vertices*2+1]=points[1];
+        areas[count]=CreateDynamicPolygon(points,-20000.0,20000.0,(vertices+1)*2,RuntimeLocations[i][RLOC_WORLD],RuntimeLocations[i][RLOC_INTERIOR],-1);
+        count++;
+        if(!IsValidDynamicArea(areas[count-1])) {
+            for(new n; n<count; n++) if(IsValidDynamicArea(areas[n])) DestroyDynamicArea(areas[n]);
+            return 0;
+        }
+    }
+    for(new i; i<FishAreaCount; i++) if(IsValidDynamicArea(FishArea[i])) DestroyDynamicArea(FishArea[i]);
+    FishAreaCount=count;
+    for(new i; i<count; i++) FishArea[i]=areas[i];
+    return 1;
 }

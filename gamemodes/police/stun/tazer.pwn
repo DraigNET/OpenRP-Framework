@@ -22,7 +22,7 @@ CMD:taser(playerid, params[]) {
         return SendServerMessage ( playerid, COLOR_ERROR, "Incapacitated", "A3A3A3", "You're currently incapacitated and can't do this." ) ;
     }
     
-	if (!IsPlayerInLEAFaction(playerid, true) && !IsPlayerInSecurityFaction(playerid, true) && !IsPlayerInFirmField(playerid, FIRM_FIELD_SECURITY, true))
+	if (!IsPlayerInLEAFaction(playerid, true) && !IsPlayerInSecurityFaction(playerid, true) && !CanUseSecurityTools(playerid))
 	{
         return SendServerMessage ( playerid, COLOR_ERROR, "Abuse", "A3A3A3", "You're not on duty in a faction with a taser." ) ;
 	}

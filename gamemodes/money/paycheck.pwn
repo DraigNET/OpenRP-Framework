@@ -6,13 +6,13 @@
 // Commands: /paycheck /nextpaycheck
 // ============================================================================
 
-#define SERVER_PAYCHECK 		( 300 )
-#define MIN_PAYCHECK_MINUTES 	(40) 
+#define SERVER_PAYCHECK (Runtime_Int(RT_PAYCHECK_BASE)) // Cached database setting; edit through ACP.
+#define MIN_PAYCHECK_MINUTES (Runtime_Int(RT_PAYCHECK_MINIMUM_MINUTES)) // Cached database setting; edit through ACP.
 #define MS_PER_MINUTE		 	60000
-#define PAYCHECK_INTERVAL 		60 // minutes
+#define PAYCHECK_INTERVAL (Runtime_Int(RT_PAYCHECK_INTERVAL_MINUTES)) // Cached database setting; edit through ACP.
 
 new g_ServerStartTick;
-new g_LastPaycheckTick;
+new g_LastPaycheckTick, PaycheckScheduleTimer, PaycheckScheduledInterval;
 
 new bool:PlayerQualifiedThisSession[MAX_PLAYERS];
 
@@ -243,9 +243,28 @@ public UpdatePaycheckTime() {
 	}
 }
 
+// Reschedule only when the interval changes. Minutes already earned are retained.
+// An overdue cycle runs on the next tick instead of producing a burst of payments.
+Paycheck_Reschedule(bool:initial=false) {
+    if (!initial && (!PaycheckScheduleTimer || PaycheckScheduledInterval==PAYCHECK_INTERVAL)) return 1;
+    if (PaycheckScheduleTimer) KillTimer(PaycheckScheduleTimer);
+    new elapsed=initial ? 0 : (GetTickCount()/MS_PER_MINUTE)-g_LastPaycheckTick;
+    new remaining=PAYCHECK_INTERVAL-elapsed;
+    if (remaining<1) remaining=1;
+    PaycheckScheduledInterval=PAYCHECK_INTERVAL;
+    PaycheckScheduleTimer=SetTimer("Runtime_PaycheckCycle",remaining*MS_PER_MINUTE,false);
+    return 1;
+}
+forward Runtime_PaycheckCycle();
+public Runtime_PaycheckCycle() {
+    GlobalPaycheckTimer();
+    PaycheckScheduleTimer=0;
+    return Paycheck_Reschedule(true);
+}
+
 // Starts the paycheck timers.
 InitializePaycheckSystem() {
-	SetTimer("GlobalPaycheckTimer", 3600000, true);
+	Paycheck_Reschedule(true);
 	SetTimer("UpdatePaycheckTime", 60000, true);
 	g_LastPaycheckTick = GetTickCount() / MS_PER_MINUTE;
 }

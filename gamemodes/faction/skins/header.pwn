@@ -25,13 +25,26 @@ enum E_FACTION_SKIN_DATA {
 #endif
 
 new FactionSkin [ MAX_FACTIONS ] [ MAX_FACTION_SKINS ] [ E_FACTION_SKIN_DATA ] ;
+static RuntimeUniformGeneration, UniformMenuGeneration[MAX_PLAYERS];
+static bool:UniformMenuIsFaction[MAX_PLAYERS];
+
+// Tagged declarations keep cross-module calls from forcing a compiler reparse.
+forward bool:FactionSkin_CanUseRow(playerid,faction,index,locker_type=-1);
+forward bool:FactionSkin_CanWear(playerid,model,locker_type=-1);
+forward bool:FactionSkin_NearLockerOrSpawn(playerid);
+#if FEATURE_CUSTOM_SKINS
+forward bool:CustomSkins_FactionModelLoaded(model,factionid);
+#endif
 
 // Callback of the uniform browser: puts the chosen uniform on the player.
 mBrowser:fskin_list(playerid, response, row, model, name[]) {
 
 	if ( response ) 
 	{
-		SetPlayerSkinEx(playerid, model);
+        if(UniformMenuGeneration[playerid]!=RuntimeUniformGeneration) return SendClientMessage(playerid,COLOR_ERROR,"Uniforms changed. Reopen the uniform menu.");
+        if(IsPlayerInDutyFaction(playerid) && UniformMenuIsFaction[playerid]!=bool:PlayerVar[playerid][E_PLAYER_FACTION_DUTY]) return SendClientMessage(playerid,COLOR_ERROR,"Your duty state changed. Reopen the uniform menu.");
+        if(UniformMenuIsFaction[playerid] && (!FactionSkin_NearLockerOrSpawn(playerid) || !FactionSkin_CanWear(playerid,model,Armory_GetPlayerLockerType(playerid)))) return SendClientMessage(playerid,COLOR_ERROR,"This uniform is no longer available at your current locker.");
+        SetPlayerSkinEx(playerid, model);
 	}
 
 	return true ;
@@ -50,6 +63,7 @@ static bool:FactionSkin_AtLocker(faction_enum_id, index, locker_type)
 // For using elsewhere. locker_type: only offer skins for that locker type (-1 = don't filter).
 ShowFactionSkinList(playerid, const title[64], const callback[64], squad, locker_type = -1)
 {
+    UniformMenuIsFaction[playerid]=true;
 	new factionid = Character [ playerid ] [ E_CHARACTER_FACTIONID ] ;
 
 	if ( ! factionid ) {
@@ -65,6 +79,7 @@ ShowFactionSkinList(playerid, const title[64], const callback[64], squad, locker
 	}
 
 	ModelBrowser_ClearData(playerid);
+    UniformMenuGeneration[playerid]=RuntimeUniformGeneration;
 	new count = 0, skinid = INVALID_FACTION_SKIN_ID, skinsquad = 0;
 
 	for ( new i, j = MAX_FACTION_SKINS ; i < j ; i ++ ) 
@@ -73,7 +88,7 @@ ShowFactionSkinList(playerid, const title[64], const callback[64], squad, locker
 
 		if ( skinid != INVALID_FACTION_SKIN_ID && skinid != 0 ) 
 		{
-			if (!FactionSkin_AtLocker(faction_enum_id, i, locker_type))
+			if (!FactionSkin_CanUseRow(playerid,faction_enum_id,i,locker_type))
 			{
 				// Not offered at this locker
 				continue;
@@ -81,7 +96,7 @@ ShowFactionSkinList(playerid, const title[64], const callback[64], squad, locker
 
 			skinsquad = FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_SQUAD ];
 
-			if (skinsquad && !IsPlayerInFactionSquad(playerid, squad) && Character [ playerid ] [ E_CHARACTER_FACTIONTIER ] > 1)
+			if (skinsquad && !IsPlayerInFactionSquad(playerid, skinsquad) && Character [ playerid ] [ E_CHARACTER_FACTIONTIER ] > 1)
 			{
 				// Don't show squad restricted skins
 				continue;
@@ -145,10 +160,12 @@ CMD:fskins(playerid, params[]) {
 	new locker_type = Armory_GetPlayerLockerType(playerid);
 
 	ModelBrowser_ClearData(playerid);
+    UniformMenuGeneration[playerid]=RuntimeUniformGeneration;
 	new skin_name [ 64 ], count = 0, skinid = INVALID_FACTION_SKIN_ID, squad = 0;
 
 	if (!IsPlayerInDutyFaction(playerid) || PlayerVar [ playerid ] [ E_PLAYER_FACTION_DUTY ])
 	{
+        UniformMenuIsFaction[playerid]=true;
 		// faction skins
 		for ( new i, j = MAX_FACTION_SKINS ; i < j ; i ++ ) 
 		{
@@ -157,7 +174,7 @@ CMD:fskins(playerid, params[]) {
 			if ( skinid != INVALID_FACTION_SKIN_ID && skinid != 0 ) 
 			{
 				//printf("Found valid skin in slot %d", i);
-				if (!FactionSkin_AtLocker(faction_enum_id, i, locker_type))
+				if (!FactionSkin_CanUseRow(playerid,faction_enum_id,i,locker_type))
 				{
 					// Belongs to a different locker (e.g. sheriff uniforms at the fire locker)
 					continue;
@@ -183,6 +200,7 @@ CMD:fskins(playerid, params[]) {
 	else
 	{
 		// civ skins
+        UniformMenuIsFaction[playerid]=false;
 		for ( new i, j = 311 ; i < j ; i ++ ) 
 		{
 			if ( ! IsValidSkin ( i ) ) {
@@ -234,6 +252,7 @@ CMD:factionskinadd(playerid, params[]) {
 
 // /fskinadd [skin] [tier] [squad] [locker type] - leaders add a uniform skin to their faction.
 CMD:fskinadd(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is being applied. Try again shortly.");
 	if ( IsPlayerIncapacitated(playerid, false) ) {
     
         return SendServerMessage ( playerid, COLOR_ERROR, "Incapacitated", "A3A3A3", "You're currently incapacitated and can't do this." ) ;
@@ -336,124 +355,17 @@ FactionSkin_Create(playerid, factionid, skinid, tier, squad, locker_type = 0) {
 
 // Loads all faction uniforms from the database.
 FactionSkin_LoadEntitiesNew() {
-
-	new loops = 0;
-
-	for ( new f; f < MAX_FACTIONS; f ++ ) {
-
-		for ( new i; i < MAX_FACTION_SKINS ; i ++ ) {
-			FactionSkin [f] [ i ] [ E_FACTION_SKIN_ID ] = INVALID_FACTION_SKIN_ID ;
-			loops++;
-		}
-
-		loops++;
-	}
-
-	inline FactionSkin_OnDataLoad() 
-	{
-		//printf("COUNT of skins for all facs: %d", cache_num_rows());
-		new dbid, skinid, factionid, tier, squad, locker_type;
-
-		new index[MAX_FACTIONS];
-		for (new i = 0, r = cache_num_rows(); i < r; ++i)
-		{ 
-			cache_get_value_name_int(i, "faction_skin_id", dbid );
-			cache_get_value_name_int(i, "faction_skin_factionid", factionid );
-			cache_get_value_name_int(i, "faction_skin_skinid", skinid );
-			cache_get_value_name_int(i, "faction_skin_tier", tier );
-			cache_get_value_name_int(i, "faction_skin_squad", squad );
-
-			// faction_skin_armory_type comes from the schema; missing column leaves it 0 (every locker)
-			locker_type = 0;
-			cache_get_value_name_int(i, "faction_skin_armory_type", locker_type );
-
-			for ( new f; f < MAX_FACTIONS; f ++ )
-			{
-				if (factionid == Faction[f][E_FACTION_ID])
-				{
-					if (index[f] >= MAX_FACTION_SKINS)
-					{
-						printf("[FACTION SKINS] Skipped skin row %d for faction %d: MAX_FACTION_SKINS (%d) reached.",
-							dbid, factionid, MAX_FACTION_SKINS);
-						break;
-					}
-
-					FactionSkin [ f ] [ index[f] ] [ E_FACTION_SKIN_ID ] 		= dbid;
-					FactionSkin [ f ] [ index[f] ] [ E_FACTION_SKIN_FACTIONID ] 	= factionid;
-					FactionSkin [ f ] [ index[f] ] [ E_FACTION_SKIN_SKINID ] 	= skinid;
-					FactionSkin [ f ] [ index[f] ] [ E_FACTION_SKIN_TIER ] 		= tier;
-					FactionSkin [ f ] [ index[f] ] [ E_FACTION_SKIN_SQUAD ] = squad;
-					FactionSkin [ f ] [ index[f] ] [ E_FACTION_SKIN_ARMORY_TYPE ] = locker_type;
-					index[f] ++;
-					// printf("Stored skin at [%d][%d]: ID=%d FactionID=%d SkinID=%d", 
-                    //     f, index[f]-1, 
-                    //     FactionSkin[f][index[f]-1][E_FACTION_SKIN_ID],
-                    //     FactionSkin[f][index[f]-1][E_FACTION_SKIN_FACTIONID],
-                    //     FactionSkin[f][index[f]-1][E_FACTION_SKIN_SKINID]
-                    // );
-				}
-
-				loops++;
-			}
-			loops++;
-		}
-
-		//printf("The %d loops only took: %d ms", loops, GetTickCount() - tickc);
-	}
-
-	MySQL_TQueryInline(mysql, using inline FactionSkin_OnDataLoad, "SELECT * FROM faction_skins", "" ) ;
-
-	return true ;
+    if(Runtime_ConfigurationBusy()) return 0;
+    if(!Runtime_StageUniforms()) { print("[Uniforms] Reload rejected; previous uniform lists retained."); return 0; }
+    return Runtime_CommitUniforms();
 }
 
 
 
 // Loads one faction's uniforms from the database.
 FactionSkin_LoadEntities(faction_enum_id) {
-
-	printf("FactionSkin_LoadEntities: %d (SQL: %d)", faction_enum_id, Faction[faction_enum_id][E_FACTION_ID]);
-	
-
-	for ( new i; i < MAX_FACTION_SKINS ; i ++ ) {
-
-		FactionSkin [faction_enum_id ] [ i ] [ E_FACTION_SKIN_ID ] = INVALID_FACTION_SKIN_ID ;
-	}
-
-	inline FactionSkin_OnDataLoad(forfactionid) {
-
-		new rows, fields ;
-		cache_get_data ( rows, fields, mysql ) ;
-
-		//printf("COUNT of skins for Fac SQL %d is: %d", forfactionid, rows);
-
-		if ( rows ) {
-
-			for ( new i; i < rows; i ++ ) { 
-				if ( i >= MAX_FACTION_SKINS ) {
-					continue;
-				}
-				
-				FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_ID ] 		= cache_get_field_int (i, "faction_skin_id");
-				FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_FACTIONID ] 	= cache_get_field_int (i, "faction_skin_factionid");
-				FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_SKINID ] 	= cache_get_field_int (i, "faction_skin_skinid");
-				FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_TIER ] 		= cache_get_field_int (i, "faction_skin_tier");
-				FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_SQUAD ] 		= cache_get_field_int (i, "faction_skin_squad");
-				FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_ARMORY_TYPE ] 	= 0;
-				cache_get_value_name_int(i, "faction_skin_armory_type", FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_ARMORY_TYPE ]);
-
-				//printf("Fskin ADD: %d (SQL: %d), (faction: %d)", FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_SKINID ], FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_ID ], FactionSkin [ faction_enum_id ] [ i ] [ E_FACTION_SKIN_FACTIONID ]);
-			}
-		}
-	}
-
-	new query [ 256 ] ;
-	mysql_format(mysql, query, sizeof ( query ), "SELECT * FROM faction_skins WHERE faction_skin_factionid = %d", Faction [ faction_enum_id ] [ E_FACTION_ID ] ) ;
-	print(query);
-	MySQL_TQueryInline(mysql, query, using inline FactionSkin_OnDataLoad) ;
-
-
-
-	return true ;
+    #pragma unused faction_enum_id
+    return FactionSkin_LoadEntitiesNew();
 }
 
 // /reloadfskins - (admin) reloads all faction uniforms.
@@ -462,13 +374,14 @@ CMD:reloadfskins(playerid, params[]) {
         return SendServerMessage(playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.");
     }
 
-    SendServerMessage(playerid, COLOR_BLUE, "Info", "A3A3A3", "Reloading faction skins from the database...");
-    FactionSkin_LoadEntitiesNew(); 
+    if(!FactionSkin_LoadEntitiesNew()) return SendClientMessage(playerid,COLOR_ERROR,"Uniform reload could not run. Check configuration status and retry.");
+    SendServerMessage(playerid, COLOR_BLUE, "Info", "A3A3A3", "Faction uniforms reloaded.");
     return true;
 }
 
 // 2025
 CMD:fskindel(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is being applied. Try again shortly.");
     if (IsPlayerIncapacitated(playerid, false)) {
         return SendServerMessage(playerid, COLOR_ERROR, "Incapacitated", "A3A3A3", "You're currently incapacitated and can't do this.");
     }
@@ -551,3 +464,73 @@ FactionSkin_Delete(playerid, factionid, skinid) {
     return true;
 }
 // <- 2025
+// Check permissions against current data when listing AND when accepting a tile.
+// A reload never strips a uniform already being worn; future choices use new rules.
+stock bool:FactionSkin_CanUseRow(playerid,faction,index,locker_type=-1) {
+    if(faction<0 || faction>=MAX_FACTIONS || index<0 || index>=MAX_FACTION_SKINS || FactionSkin[faction][index][E_FACTION_SKIN_ID]<=0) return false;
+    if(FactionSkin[faction][index][E_FACTION_SKIN_FACTIONID]!=Character[playerid][E_CHARACTER_FACTIONID] || !FactionSkin_AtLocker(faction,index,locker_type)) return false;
+    new tier=FactionSkin[faction][index][E_FACTION_SKIN_TIER], squad=FactionSkin[faction][index][E_FACTION_SKIN_SQUAD];
+    if(tier && Character[playerid][E_CHARACTER_FACTIONTIER]>tier) return false;
+    if(squad && !IsPlayerInFactionSquad(playerid,squad) && Character[playerid][E_CHARACTER_FACTIONTIER]>1) return false;
+    return true;
+}
+stock bool:FactionSkin_CanWear(playerid,model,locker_type=-1) {
+    new faction=Faction_GetEnumID(Character[playerid][E_CHARACTER_FACTIONID]);
+    if(faction==INVALID_FACTION_ID || GetPlayerFactionSuspension(playerid)) return false;
+    for(new i; i<MAX_FACTION_SKINS; i++) if(FactionSkin[faction][i][E_FACTION_SKIN_SKINID]==model && FactionSkin_CanUseRow(playerid,faction,i,locker_type)) return true;
+    return false;
+}
+stock bool:FactionSkin_MenuCurrent(playerid) { return UniformMenuGeneration[playerid]==RuntimeUniformGeneration; }
+stock bool:FactionSkin_NearLockerOrSpawn(playerid) {
+    if(IsPlayerNearArmory(playerid)) return true;
+    new faction=Faction_GetEnumID(Character[playerid][E_CHARACTER_FACTIONID]);
+    if(faction==INVALID_FACTION_ID || Faction_CanID(faction,FAC_CAP_LAW) || Faction[faction][E_FACTION_TYPE]==FACTION_TYPE_EMS) return false;
+    return GetPlayerInterior(playerid)==Faction[faction][E_FACTION_SPAWN_INT] && GetPlayerVirtualWorld(playerid)==Faction[faction][E_FACTION_SPAWN_VW] && IsPlayerInRangeOfPoint(playerid,5.0,Faction[faction][E_FACTION_SPAWN_X],Faction[faction][E_FACTION_SPAWN_Y],Faction[faction][E_FACTION_SPAWN_Z]);
+}
+stock bool:FactionSkin_NearTurnoutVehicle(playerid) {
+    new vehicle=PlayerVar[playerid][E_PLAYER_SWAT_VEHICLE];
+    if(!IsValidVehicle(vehicle) || GetVehicleFactionID(vehicle)!=Character[playerid][E_CHARACTER_FACTIONID] || GetVehicleVirtualWorld(vehicle)!=GetPlayerVirtualWorld(playerid)) return false;
+    new Float:x,Float:y,Float:z; GetVehiclePos(vehicle,x,y,z);
+    return IsPlayerInRangeOfPoint(playerid,10.0,x,y,z);
+}
+
+static RuntimeUniformStage[MAX_FACTIONS][MAX_FACTION_SKINS][E_FACTION_SKIN_DATA];
+// Snapshot statements can run on the worker connection during live reloads.
+Runtime_QueryUniforms(query[],size) {
+    format(query,size,"SELECT 0 kind,u.faction_skin_id id,u.faction_skin_factionid faction,u.faction_skin_skinid model,u.faction_skin_tier tier,u.faction_skin_squad squad,u.faction_skin_armory_type locker_type,IFNULL(t.faction_id,0) type_faction,IFNULL(q.faction_id,0) squad_faction,s.revision FROM faction_skins u JOIN runtime_config_state s ON s.id=1 LEFT JOIN faction_armory_types t ON t.armory_type_id=u.faction_skin_armory_type LEFT JOIN runtime_faction_squads q ON q.squad_id=u.faction_skin_squad AND q.enabled=1 ");
+    strcat(query,"UNION ALL SELECT -1,0,0,0,0,0,0,0,0,s.revision FROM runtime_config_state s WHERE s.id=1 ORDER BY kind,id",size);
+    return 1;
+}
+
+Runtime_StageUniforms(expectedRevision=0,bool:fromCache=false) {
+    for(new f; f<MAX_FACTIONS; f++) for(new i; i<MAX_FACTION_SKINS; i++) RuntimeUniformStage[f][i][E_FACTION_SKIN_ID]=INVALID_FACTION_SKIN_ID;
+    new Cache:result=MYSQL_INVALID_CACHE;
+    if(!fromCache) { new query[1536]; Runtime_QueryUniforms(query,sizeof query); result=mysql_query(mysql,query); }
+    if(!fromCache && !cache_is_valid(result)) return 0;
+    new rows=cache_num_rows(), revision, count[MAX_FACTIONS];
+    if(!rows) { if(!fromCache) cache_delete(result); return 0; }
+    cache_get_value_name_int(0,"revision",revision);
+    if(expectedRevision && revision!=expectedRevision) { if(!fromCache) cache_delete(result); return 0; }
+    for(new row=1; row<rows; row++) {
+        new id,faction,model,tier,squad,locker_type,type_faction,squad_faction;
+        cache_get_value_name_int(row,"id",id); cache_get_value_name_int(row,"faction",faction); cache_get_value_name_int(row,"model",model); cache_get_value_name_int(row,"tier",tier); cache_get_value_name_int(row,"squad",squad); cache_get_value_name_int(row,"locker_type",locker_type); cache_get_value_name_int(row,"type_faction",type_faction); cache_get_value_name_int(row,"squad_faction",squad_faction);
+        new index=Faction_GetEnumID(faction);
+        if(index==INVALID_FACTION_ID || count[index]>=MAX_FACTION_SKINS || id<1 || tier<0 || tier>10 || squad<0 || squad>127 || (locker_type && type_faction!=faction) || (squad && squad_faction!=faction)) { if(!fromCache) cache_delete(result); return 0; }
+        if(model<0 || model==74 || model>311) {
+            #if FEATURE_CUSTOM_SKINS
+                if(!CustomSkins_FactionModelLoaded(model,faction)) { if(!fromCache) cache_delete(result); return 0; }
+            #else
+                if(!fromCache) cache_delete(result); return 0;
+            #endif
+        }
+        new slot=count[index]++;
+        RuntimeUniformStage[index][slot][E_FACTION_SKIN_ID]=id; RuntimeUniformStage[index][slot][E_FACTION_SKIN_FACTIONID]=faction; RuntimeUniformStage[index][slot][E_FACTION_SKIN_SKINID]=model; RuntimeUniformStage[index][slot][E_FACTION_SKIN_TIER]=tier; RuntimeUniformStage[index][slot][E_FACTION_SKIN_SQUAD]=squad; RuntimeUniformStage[index][slot][E_FACTION_SKIN_ARMORY_TYPE]=locker_type;
+    }
+    if(!fromCache) cache_delete(result);
+    return 1;
+}
+Runtime_CommitUniforms() {
+    for(new f; f<MAX_FACTIONS; f++) for(new i; i<MAX_FACTION_SKINS; i++) for(new c; c<E_FACTION_SKIN_DATA; c++) FactionSkin[f][i][E_FACTION_SKIN_DATA:c]=RuntimeUniformStage[f][i][E_FACTION_SKIN_DATA:c];
+    RuntimeUniformGeneration++;
+    return 1;
+}

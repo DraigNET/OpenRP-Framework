@@ -13,7 +13,7 @@ static enum
 	NC_TYPE_ACCOUNT
 }
 
-#define NAMECHANGE_COST	15000
+#define NAMECHANGE_COST (Runtime_Int(RT_IDENTITY_NAMECHANGE_FEE)) // Cached database setting; edit through ACP.
 
 // Returns true if a requested character name only uses valid characters (no symbols or spaces).
 IsValidName(const name[])

@@ -25,6 +25,7 @@ DEFINE_HOOK_REPLACEMENT(Vehicle, Veh);
 
 #include <YSI_Coding\y_inline>
 #include <ww_mysql>
+#include "config/runtime/catalog.pwn"
 #include <samp_bcrypt>
 #include <strlib>
 #define STREAMER_USE_DYNAMIC_TEXT3D_TAG

@@ -8,7 +8,7 @@
 
 #define MAX_PROPERTIES	2000
 #define INVALID_PROPERTY_ID -1
-#define PROPERTY_ENTRY_COOLDOWN 1800 // 30 minutes in seconds
+#define PROPERTY_ENTRY_COOLDOWN (Runtime_Int(RT_PROP_ENTRY_CD_SEC)) // Cached database setting; edit through ACP.
 
 enum E_PROPERTY_DATA {
 
@@ -125,7 +125,7 @@ enum {
 #define PROPERTY_MAX_TIER               ( 5 )
 #define PROPERTY_UNTIERED_RENT          ( 100 )     // default rent of a new house that has no tier
 #define PROPERTY_UNTIERED_MAX_RENT      ( 250 )
-#define PROPERTY_RESALE_MIN_PCT         ( 100 )     // a firm's asking price must be at least this % of what it paid...
+#define PROPERTY_RESALE_MIN_PCT (Runtime_Int(RT_PROP_RESALE_MIN_PCT)) // Cached database setting; edit through ACP.
 #define PROPERTY_RESALE_MAX_PCT         ( 200 )     // ...and at most this %
 
 // Writes the name of a house tier (Trailer, Bungalow...) into name.
@@ -446,7 +446,7 @@ hook OnStartSQL() {
 	print(" * [PROPERTY] Loading all properties...");
 
 	inline Property_OnDataLoad() {
-		for (new i = 0, r = cache_num_rows(); i < r; ++i) {
+		for (new i = 0, r = cache_num_rows(); i < r && i < MAX_PROPERTIES; ++i) {
 			cache_get_value_name_int(i, "property_id", Property [ i ] [ E_PROPERTY_ID ]);
 
 			cache_get_value_name_int(i, "property_type", Property [ i ] [ E_PROPERTY_TYPE ]);
@@ -527,6 +527,7 @@ hook OnStartSQL() {
 
 		printf(" * [PROPERTY] Loaded %d properties.", cache_num_rows() ) ;
 		CheckInactiveProperties();
+        RuntimeConfig_PropertiesReady();
 	}
 
 	MySQL_TQueryInline(mysql, using inline Property_OnDataLoad, "SELECT * FROM properties", "" ) ;
@@ -567,7 +568,7 @@ Property_SetupVisualEntities(enum_id) {
 		new icon = PropertyType_GetMapIcon (Property [ enum_id ] [ E_PROPERTY_BUY_TYPE ]);
 
 		if ( icon ) {
-			Property [ enum_id ] [ E_PROPERTY_MAPICON ] = CreateDynamicMapIcon(Property [ enum_id ] [ E_PROPERTY_EXT_X ], Property [ enum_id ] [ E_PROPERTY_EXT_Y ], Property [ enum_id ] [ E_PROPERTY_EXT_Z ], icon, 0xFFFFFFFF, -1, -1, -1, PROPERTY_PICKUP_DRAW_DIST ) ;
+			Property [ enum_id ] [ E_PROPERTY_MAPICON ] = CreateDynamicMapIcon(Property [ enum_id ] [ E_PROPERTY_EXT_X ], Property [ enum_id ] [ E_PROPERTY_EXT_Y ], Property [ enum_id ] [ E_PROPERTY_EXT_Z ], icon, 0xFFFFFFFF, Property [ enum_id ] [ E_PROPERTY_EXT_VW ], Property [ enum_id ] [ E_PROPERTY_EXT_INT ], -1, PROPERTY_PICKUP_DRAW_DIST ) ;
 		}
 	}
 
@@ -623,7 +624,7 @@ Property_SetupVisualEntities(enum_id) {
 	Property [ enum_id ] [ E_PROPERTY_PICKUP ] [ 1 ] = CreateDynamicPickup(
 		19902, 1, 
 		Property [ enum_id ] [ E_PROPERTY_INT_X ], Property [ enum_id ] [ E_PROPERTY_INT_Y ], Property [ enum_id ] [ E_PROPERTY_INT_Z ] + pickup_offset_z,
-		Property [ enum_id ] [ E_PROPERTY_ID ], Property [ enum_id ] [ E_PROPERTY_INT_INT ], Property [ enum_id ] [ E_PROPERTY_INT_VW ],
+		Property [ enum_id ] [ E_PROPERTY_INT_VW ], Property [ enum_id ] [ E_PROPERTY_INT_INT ], -1,
 		PROPERTY_PICKUP_DRAW_DIST
 	);
 
@@ -726,7 +727,7 @@ PropertySetupBuyPoint(property_id) {
 // Returns true if the property index is valid.
 IsValidProperty(index) {
 
-	if ( index == -1 ) {
+	if ( index < 0 || index >= MAX_PROPERTIES ) {
 
 		return false ;
 	}

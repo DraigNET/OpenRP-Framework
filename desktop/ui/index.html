@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <!-- Local assets only. Privileged actions use preload IPC, not browser HTTP. -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
+    <title>OpenRP Framework Editor</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <!-- Navigation data-page keys match titles/render() in app.js. -->
+    <aside>
+      <div class="brand">
+        <img src="icon.png" alt="" /><span
+          >OpenRP <b>Framework</b><small>DESKTOP EDITOR</small></span
+        >
+      </div>
+      <div class="section-label">WORKSPACE</div>
+      <nav aria-label="Editor sections">
+        <button data-page="overview" class="active">
+          Overview <span>01</span>
+        </button>
+        <button data-page="settings">Server settings <span>02</span></button>
+        <button data-page="locations">World locations <span>03</span></button>
+        <button data-page="models">Vehicle catalogue <span>04</span></button>
+        <button data-page="squads">Faction squads <span>05</span></button>
+        <button data-page="equipment">Faction equipment <span>06</span></button>
+        <button data-page="history">Change history <span>07</span></button>
+        <button data-page="server">Local server <span>08</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="dot"></span><span id="connection-label">Not connected</span
+        ><button id="disconnect" class="quiet" hidden>Disconnect</button>
+      </div>
+    </aside>
+    <main>
+      <!-- Shared title/status remains while render() replaces each screen. -->
+      <header>
+        <div>
+          <span class="eyebrow">YOUR SERVER, YOUR WORLD</span>
+          <h1 id="page-title">Workspace overview</h1>
+        </div>
+        <div class="header-actions">
+          <span id="revision" class="pill">Offline</span
+          ><button id="refresh" hidden>Refresh</button>
+        </div>
+      </header>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <!-- Tab changes retain inputs; validation reveals the first invalid panel. -->
+      <section id="connect-screen">
+        <div class="intro">
+          <span class="eyebrow">WELCOME TO YOUR WORKSPACE</span>
+          <h2>Build your server.<br /><span>Make it yours.</span></h2>
+          <p>
+            Configure your OpenRP Framework server from your desktop. Connect to
+            MariaDB, sign in as a Manager, and start shaping your world.
+          </p>
+          <div class="tags">
+            <span>Direct database connection</span
+            ><span>No web host required</span><span>Live configuration</span>
+          </div>
+        </div>
+        <form id="connect-form" class="card" novalidate>
+          <div class="card-heading">
+            <div>
+              <span class="eyebrow">GET CONNECTED</span>
+              <h3>Open a server workspace</h3>
+            </div>
+            <span class="pill">Windows</span>
+          </div>
+          <p class="muted">
+            Connect once or remember this connection on your Windows account.
+            Saved passwords are protected by Windows encryption.
+          </p>
+          <div class="toolbar">
+            <label class="wide"
+              >Saved connection<select id="saved-connection">
+                <option value="">New connection</option>
+              </select></label
+            ><button id="forget-connection" type="button" hidden>Forget</button>
+          </div>
+          <div
+            class="connection-tabs"
+            role="tablist"
+            aria-label="Connection setup"
+          >
+            <button
+              type="button"
+              id="tab-database"
+              role="tab"
+              aria-selected="true"
+              aria-controls="panel-database"
+              data-connect-tab="database"
+            >
+              1. Database
+            </button>
+            <button
+              type="button"
+              id="tab-manager"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-manager"
+              data-connect-tab="manager"
+              tabindex="-1"
+            >
+              2. Manager login
+            </button>
+            <button
+              type="button"
+              id="tab-email"
+              role="tab"
+              aria-selected="false"
+              aria-controls="panel-email"
+              data-connect-tab="email"
+              tabindex="-1"
+            >
+              Email / 2FA
+            </button>
+          </div>
+          <section
+            id="panel-database"
+            role="tabpanel"
+            aria-labelledby="tab-database"
+          >
+            <div class="fields two">
+              <label
+                >Database host<input
+                  name="host"
+                  value="127.0.0.1"
+                  required
+                  autocomplete="off"
+              /></label>
+              <label
+                >Port<input
+                  name="port"
+                  value="3306"
+                  type="number"
+                  min="1"
+                  max="65535"
+                  required
+              /></label>
+              <label
+                >Database name<input
+                  name="database"
+                  value="omprp"
+                  required
+                  autocomplete="off"
+              /></label>
+              <label
+                >Database user<input
+                  name="user"
+                  placeholder="openrp_editor"
+                  required
+                  autocomplete="off"
+              /></label>
+              <label class="wide"
+                >Database password<input
+                  name="password"
+                  type="password"
+                  autocomplete="off"
+              /></label>
+              <label class="check wide"
+                ><input name="tls" type="checkbox" /> Require verified TLS for
+                the database connection</label
+              >
+            </div>
+          </section>
+          <section
+            id="panel-manager"
+            role="tabpanel"
+            aria-labelledby="tab-manager"
+            hidden
+          >
+            <p class="tab-help">
+              Sign in with a Manager account from this database.
+            </p>
+            <div class="fields two">
+              <label
+                >Username<input
+                  name="manager"
+                  required
+                  autocomplete="off" /></label
+              ><label
+                >Password<input
+                  name="managerPassword"
+                  type="password"
+                  required
+                  autocomplete="off"
+              /></label>
+            </div>
+            <label class="check"
+              ><input name="rememberConnection" type="checkbox" /> Remember
+              connection and passwords</label
+            >
+            <label
+              >Connection name (optional)<input
+                name="profileName"
+                maxlength="64"
+                placeholder="My local server"
+            /></label>
+            <p class="muted">
+              Database, Manager and SMTP passwords are encrypted on this Windows
+              account. Email 2FA is still required when enabled.
+            </p>
+          </section>
+          <section
+            id="panel-email"
+            role="tabpanel"
+            aria-labelledby="tab-email"
+            hidden
+          >
+            <p class="tab-help">
+              Only needed if your Manager account uses email 2FA. Use your own
+              SMTP server.
+            </p>
+            <div class="fields two">
+              <label>SMTP host<input name="smtpHost" /></label
+              ><label
+                >Port<input
+                  name="smtpPort"
+                  type="number"
+                  value="587"
+                  min="1"
+                  max="65535" /></label
+              ><label>SMTP username<input name="smtpUser" /></label
+              ><label
+                >SMTP password<input
+                  name="smtpPassword"
+                  type="password" /></label
+              ><label class="wide"
+                >From address<input name="smtpFrom" type="email" /></label
+              ><label class="check wide"
+                ><input name="smtpSecure" type="checkbox" /> Implicit TLS
+                (usually port 465)</label
+              >
+            </div>
+          </section>
+          <button class="primary full" id="connection-next" type="button">
+            Continue to Manager login <span>→</span>
+          </button>
+          <button class="primary full" type="submit">
+            Connect to workspace <span>→</span>
+          </button>
+          <p class="footnote">
+            Manager level 7+ · Matching framework database required
+          </p>
+        </form>
+        <form id="code-form" class="card" hidden>
+          <h3>Check your email</h3>
+          <p>
+            A six-digit code was sent to your Manager account’s email address.
+          </p>
+          <label
+            >Email code<input
+              name="code"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              required
+              autocomplete="one-time-code" /></label
+          ><button class="primary full">Verify and open workspace</button>
+        </form>
+      </section>
+      <!-- render() owns content; delegated actions survive DOM replacement. -->
+      <section id="workspace" hidden><div id="content"></div></section>
+      <footer>OpenRP Framework <span>Desktop Editor · 0.1.0</span></footer>
+    </main>
+    <dialog id="edit-dialog">
+      <!-- Editing creates a draft; only the separate review confirmation saves. -->
+      <form id="edit-form">
+        <div class="card-heading">
+          <h2 id="edit-title">Edit record</h2>
+          <button type="button" id="cancel-edit" class="quiet">Close ×</button>
+        </div>
+        <div id="edit-fields" class="fields two"></div>
+        <div class="dialog-actions">
+          <button class="primary" type="submit">Review change</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="review-dialog">
+      <h2>Review your changes</h2>
+      <p class="muted">
+        Saving creates an audited revision. A running server applies supported
+        changes through its database poller.
+      </p>
+      <pre id="review-content"></pre>
+      <label
+        >Change note<input
+          id="change-note"
+          maxlength="256"
+          placeholder="Describe why you are making this change"
+      /></label>
+      <div class="dialog-actions">
+        <button id="cancel-review">Back</button
+        ><button id="confirm-save" class="primary">Save changes</button>
+      </div>
+    </dialog>
+  </body>
+</html>

@@ -346,5 +346,7 @@ stock bool:IsPlayerArrested(playerid)
 // Returns true if the player is inside the prison world.
 stock bool:IsInPrison(playerid)
 {
-    return GetPlayerVirtualWorld(playerid) == PRISON_VW && GetPlayerInterior(playerid) == PRISON_INT;
+    if ((Character[playerid][E_CHARACTER_ARREST_TIME]!=0 || Character[playerid][E_CHARACTER_JFL]) && GetPlayerVirtualWorld(playerid)==Character[playerid][E_CHARACTER_ARREST_VW] && GetPlayerInterior(playerid)==Character[playerid][E_CHARACTER_ARREST_INT]) return true;
+    for(new i; i<RuntimeLocationCount; i++) if(RuntimeLocations[i][RLOC_CATEGORY]==RT_CATEGORY_PRISON_CELL && Runtime_AtLocation(playerid,i)) return true;
+    return false;
 }

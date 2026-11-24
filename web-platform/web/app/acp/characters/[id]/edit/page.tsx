@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireStaff, getCharacterById } from '@/lib/dal'
-import { ADMIN_LVL, squadsForFaction } from '@/lib/constants'
+import { ADMIN_LVL, } from '@/lib/constants'
 import { vehicleName } from '@/lib/vehicles'
 import CharacterEditForm from './CharacterEditForm'
 import DeleteVehicleButton from './DeleteVehicleButton'
@@ -17,7 +17,7 @@ export default async function CharacterEditPage({ params }: PageProps<'/acp/char
 
   const factionRows = await prisma.faction.findMany({ select: { faction_id: true, faction_type: true, faction_abbrev: true } })
   const squadsByFaction: Record<number, Record<number, string>> = {}
-  for (const f of factionRows) squadsByFaction[f.faction_id] = squadsForFaction(f.faction_type, f.faction_abbrev)
+  for (const f of factionRows) squadsByFaction[f.faction_id] = await loadFactionSquads(f.faction_id)
 
   const vehicles = await prisma.vehicle.findMany({
     where: { vehicle_owner: id, vehicle_type: 3 },
@@ -75,3 +75,5 @@ export default async function CharacterEditPage({ params }: PageProps<'/acp/char
     </>
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

@@ -100,7 +100,7 @@ CMD:gatetoll(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gatetoll [gateid] [0: no, 1: yes]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -141,7 +141,7 @@ CMD:gateautoclose(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gateautoclose [gateid] [0: no, 1: yes]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -181,7 +181,7 @@ CMD:gateautoopen(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gateautoopen [gateid] [0: no, 1: yes]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -221,7 +221,7 @@ CMD:gateradius(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gateradius [gateid] [radius]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -262,7 +262,7 @@ CMD:gateopen(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gateopen [gateid]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -297,7 +297,7 @@ CMD:gatemove(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gatemove [gateid]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -339,7 +339,7 @@ CMD:gatetome(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gatetome [gateid]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -424,7 +424,7 @@ CMD:gatetexture(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "Texture slot can't be less than 0 or more than 15.");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -481,7 +481,7 @@ CMD:gateworld(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gatevw [gateid] [virtualworld]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -528,7 +528,7 @@ CMD:gateint(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gateint [gateid] [interior]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -573,7 +573,7 @@ CMD:gatetype(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "0: Invalid | 1: Public | 2: Player-owned | 3: Property-linked | 4: Faction-owned");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	
@@ -985,7 +985,7 @@ CMD:gategoto(playerid, params[]) {
 		return SendClientMessage(playerid, -1, "/gategoto [gateid]");
 	}
 
-	if ( gateid > MAX_GATES ) {
+	if ( gateid < 0 || gateid >= MAX_GATES ) {
 
 		return SendClientMessage(playerid, -1, "Gate ID you entered is invalid." ) ;
 	}	

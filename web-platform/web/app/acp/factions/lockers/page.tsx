@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { requireStaff } from '@/lib/dal'
-import { ADMIN_LVL, squadsForFaction } from '@/lib/constants'
+import { ADMIN_LVL, } from '@/lib/constants'
 import FactionSelect from '../FactionSelect'
 import { LockerForm, HelpGuide } from './LockerClient'
 
@@ -19,7 +19,7 @@ export default async function LockersPage({ searchParams }: PageProps<'/acp/fact
   const types = await prisma.factionArmoryType.findMany({ select: { armory_type_id: true, faction_id: true, type_name: true, type_enabled: true }, orderBy: [{ type_name: 'asc' }] })
 
   const squadsByFaction: Record<number, Record<number, string>> = {}
-  for (const f of factions) squadsByFaction[f.faction_id] = squadsForFaction(f.faction_type, f.faction_abbrev)
+  for (const f of factions) squadsByFaction[f.faction_id] = await loadFactionSquads(f.faction_id)
 
   const editId = Number(firstParam(sp.edit)) || 0
   const editing = editId > 0 ? await prisma.factionArmory.findUnique({ where: { armory_id: editId } }) : null
@@ -81,3 +81,5 @@ export default async function LockersPage({ searchParams }: PageProps<'/acp/fact
     </>
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

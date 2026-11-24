@@ -127,7 +127,7 @@ enum VehicleData {
 	E_VEHICLE_NEON [ 2 ],
 
 	E_VEHICLE_PAINTJOB,
-	Float: E_VEHICLE_HEALTH, 
+	Float: E_VEHICLE_HEALTH,
 	E_VEHICLE_DMG_PANELS,
 	E_VEHICLE_DMG_DOORS,
 	E_VEHICLE_DMG_LIGHTS,
@@ -151,12 +151,12 @@ enum VehicleData {
 	E_VEHICLE_ENGINE_WEAR, // 0-1000, wears while running on overdue oil, 1000 = seized
 	E_VEHICLE_REPAIR_READY, // unix time a car left at a Pay'n'Spray can be collected, 0 = not in the workshop
 }
-#if defined MAX_VEHICLES 
-	#undef MAX_VEHICLES 
+#if defined MAX_VEHICLES
+	#undef MAX_VEHICLES
 #endif
 #define MAX_VEHICLES (3000) // default: 2000
 
-new Vehicle [ MAX_VEHICLES ] [ VehicleData ]; //, vehicleCount ; 
+new Vehicle [ MAX_VEHICLES ] [ VehicleData ]; //, vehicleCount ;
 
 // Resets the label handles of a vehicle.
 stock Vehicle_ResetLabelHandles(vehicle_enum_id)
@@ -309,7 +309,7 @@ Vehicle_CreateEntity ( playerid, veh_model, veh_type, veh_owner, Float: veh_pos_
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_WINDOW ]		= true ;
 
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_PAINTJOB ] = 3 ;
- 
+
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_HEALTH ]		= 1000.0;
 
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_DMG_PANELS ] 	= 0 ;
@@ -334,7 +334,7 @@ Vehicle_CreateEntity ( playerid, veh_model, veh_type, veh_owner, Float: veh_pos_
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_LICENSE ] [ 0 ] = EOS ;
 	do { GenerateLicensePlate(plate, sizeof(plate)); } while (IsLicensePlateTaken(plate));
 	strcat(Vehicle[veh_enum_id][E_VEHICLE_LICENSE], plate);
-	new query [ 1024 ] ; 
+	new query [ 1024 ] ;
 
 	mysql_format ( mysql, query, sizeof ( query ), "INSERT INTO vehicles (vehicle_modelid, vehicle_type, vehicle_jobid, vehicle_owner, vehicle_color_a, vehicle_color_b, vehicle_pos_x, vehicle_pos_y, vehicle_pos_z, vehicle_pos_a, vehicle_vw, vehicle_int, vehicle_license, vehicle_fuel, vehicle_health, vehicle_dmg_panels, vehicle_dmg_doors, vehicle_dmg_lights, vehicle_dmg_tires, vehicle_paintjob, vehicle_siren, vehicle_squad, vehicle_purchase_date) VALUES (%d, %d, %d, %d, %d, %d, '%f', '%f', '%f', '%f', %d, %d, '%e', %d, '1000.0', 0, 0, 0, 0, 3, 0, -1, %d)",
 		Vehicle [ veh_enum_id ] [ E_VEHICLE_MODELID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_TYPE ], Vehicle [ veh_enum_id ] [ E_VEHICLE_JOBID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_OWNER ], Vehicle [ veh_enum_id ] [ E_VEHICLE_COLOR_A ], Vehicle [ veh_enum_id ] [ E_VEHICLE_COLOR_B ],
@@ -343,7 +343,7 @@ Vehicle_CreateEntity ( playerid, veh_model, veh_type, veh_owner, Float: veh_pos_
 	inline Vehicle_OnDatabaseInsert() {
 
 		Vehicle [ veh_enum_id ] [ E_VEHICLE_SQLID ] = cache_insert_id ();
-		printf(" * [VEHICLE] Created vehicle (%d) with ID %d.", 
+		printf(" * [VEHICLE] Created vehicle (%d) with ID %d.",
 			veh_enum_id, Vehicle [ veh_enum_id ] [ E_VEHICLE_SQLID ] ) ;
 
 		SendServerMessage(playerid, COLOR_BLUE, "Vehicle", "A3A3A3", sprintf("To spawn your car, use /carspawn %d.", Vehicle [ veh_enum_id ] [ E_VEHICLE_SQLID ] ) ) ;
@@ -400,7 +400,7 @@ Vehicle_CreateEntity_Spawn ( playerid, veh_model, veh_type, veh_owner, Float: ve
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_WINDOW ]		= true ;
 
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_PAINTJOB ] = 3 ;
- 
+
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_HEALTH ]		= 1000.0;
 
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_DMG_PANELS ] 	= 0 ;
@@ -424,7 +424,7 @@ Vehicle_CreateEntity_Spawn ( playerid, veh_model, veh_type, veh_owner, Float: ve
 	Vehicle [ veh_enum_id ] [ E_VEHICLE_LICENSE ] [ 0 ] = EOS ;
 	do { GenerateLicensePlate(plate, sizeof(plate)); } while (IsLicensePlateTaken(plate));
 	strcat(Vehicle[veh_enum_id][E_VEHICLE_LICENSE], plate);
-	new query [ 1024 ] ; 
+	new query [ 1024 ] ;
 
 	mysql_format ( mysql, query, sizeof ( query ), "INSERT INTO vehicles (vehicle_modelid, vehicle_type, vehicle_jobid, vehicle_owner, vehicle_color_a, vehicle_color_b, vehicle_pos_x, vehicle_pos_y, vehicle_pos_z, vehicle_pos_a, vehicle_vw, vehicle_int, vehicle_license, vehicle_fuel, vehicle_health, vehicle_dmg_panels, vehicle_dmg_doors, vehicle_dmg_lights, vehicle_dmg_tires, vehicle_paintjob, vehicle_siren, vehicle_squad) VALUES (%d, %d, %d, %d, %d, %d, '%f', '%f', '%f', '%f', %d, %d, '%e', %d, '1000.0', 0, 0, 0, 0, 3, 0, -1)",
 		Vehicle [ veh_enum_id ] [ E_VEHICLE_MODELID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_TYPE ], Vehicle [ veh_enum_id ] [ E_VEHICLE_JOBID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_OWNER ], Vehicle [ veh_enum_id ] [ E_VEHICLE_COLOR_A ], Vehicle [ veh_enum_id ] [ E_VEHICLE_COLOR_B ],
@@ -434,10 +434,10 @@ Vehicle_CreateEntity_Spawn ( playerid, veh_model, veh_type, veh_owner, Float: ve
 	inline Vehicle_OnDatabaseInsert() {
 
 		Vehicle [ veh_enum_id ] [ E_VEHICLE_SQLID ] = cache_insert_id ();
-		printf(" * [VEHICLE] Created vehicle (%d) with ID %d.", 
+		printf(" * [VEHICLE] Created vehicle (%d) with ID %d.",
 			veh_enum_id, Vehicle [ veh_enum_id ] [ E_VEHICLE_SQLID ] ) ;
 
-		Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ] = ORP_CreateVehicle(	Vehicle [ veh_enum_id ] [ E_VEHICLE_MODELID], 
+		Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ] = ORP_CreateVehicle(	Vehicle [ veh_enum_id ] [ E_VEHICLE_MODELID],
 			Vehicle [ veh_enum_id ] [ E_VEHICLE_POS_X ], Vehicle [ veh_enum_id ] [ E_VEHICLE_POS_Y ], Vehicle [ veh_enum_id ] [ E_VEHICLE_POS_Z ],
 			Vehicle [ veh_enum_id ] [ E_VEHICLE_POS_A ], Vehicle [ veh_enum_id ] [ E_VEHICLE_VW ], Vehicle [ veh_enum_id ] [ E_VEHICLE_INT ],
 			Vehicle [ veh_enum_id ] [ E_VEHICLE_COLOR_A ], Vehicle [ veh_enum_id ] [ E_VEHICLE_COLOR_B ], -1
@@ -446,7 +446,7 @@ Vehicle_CreateEntity_Spawn ( playerid, veh_model, veh_type, veh_owner, Float: ve
 		Temp_SetVehicleEnumId(Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ], veh_enum_id);
 
 		Vehicle [ veh_enum_id ] [ E_VEHICLE_HEALTH ] = 1000 ;
-		ORP_SetVehicleHealth ( Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_HEALTH ] ); 
+		ORP_SetVehicleHealth ( Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_HEALTH ] );
 
 		SetVehicleNumberPlate(Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_LICENSE ] ) ;
 
@@ -466,7 +466,7 @@ Vehicle_CreateEntity_Spawn ( playerid, veh_model, veh_type, veh_owner, Float: ve
 
 	MySQL_TQueryInline(mysql, using inline Vehicle_OnDatabaseInsert, query, "");
 
-	printf(" * [VEHICLE] Created entity ID %d (veh: %d) [type %d] at %0.2f, %0.2f, %0.2f", veh_enum_id, 
+	printf(" * [VEHICLE] Created entity ID %d (veh: %d) [type %d] at %0.2f, %0.2f, %0.2f", veh_enum_id,
 		Vehicle [ veh_enum_id ] [ E_VEHICLE_ID ], Vehicle [ veh_enum_id ] [ E_VEHICLE_TYPE ], veh_pos_x, veh_pos_y, veh_pos_z ) ;
 
 
@@ -510,7 +510,7 @@ Vehicle_SetDoorsEngineStatus(index ) {
 		default: {
 
 			SetEngineStatus(Vehicle [ i ] [ E_VEHICLE_ID ], Vehicle [ i ] [ E_VEHICLE_ENGINE ]);
-			SetDoorStatus(Vehicle [ i ] [ E_VEHICLE_ID ], Vehicle [ i ] [ E_VEHICLE_DOORS ]);	
+			SetDoorStatus(Vehicle [ i ] [ E_VEHICLE_ID ], Vehicle [ i ] [ E_VEHICLE_DOORS ]);
 		}
 	}
 
@@ -540,7 +540,7 @@ Vehicle_LoadEntities() {
 
 	inline Vehicle_OnDataLoad() {
 		new spawned_count, failed_count, dormant_count;
-		for (new i = 0, r = cache_num_rows(); i < r; ++i) {
+		for (new i = 0, r = cache_num_rows(); i < r && i < MAX_VEHICLES; ++i) {
 			cache_get_value_name_int (i, "vehicle_sqlid", Vehicle [ i ] [ E_VEHICLE_SQLID ]);
 
 			cache_get_value_name_int (i, "vehicle_modelid", Vehicle [ i ] [ E_VEHICLE_MODELID ]);
@@ -643,7 +643,7 @@ Vehicle_LoadEntities() {
 
 				if ( Vehicle [ i ] [ E_VEHICLE_HEALTH ] <= 250.0 ) {
 
-					ORP_SetVehicleHealth ( Vehicle [ i ] [ E_VEHICLE_ID ], 300 ); 
+					ORP_SetVehicleHealth ( Vehicle [ i ] [ E_VEHICLE_ID ], 300 );
 				}
 
 				else ORP_SetVehicleHealth(Vehicle [ i ] [ E_VEHICLE_ID ], Vehicle [ i ] [ E_VEHICLE_HEALTH ] );
@@ -661,8 +661,8 @@ Vehicle_LoadEntities() {
 
 			Vehicle_ClearRuntimeVariables(i);
 			Vehicle_ClearTruckerVariables(i);
-			
-			
+
+
 			VehicleVar [ i ] [ E_VEHICLE_RENTEDBY ] = INVALID_PLAYER_ID ;
 			VehicleVar [ i ] [ E_VEHICLE_RENTUNIX ] = 0 ;
 
@@ -694,6 +694,7 @@ Vehicle_LoadEntities() {
 		}
 
 		VehicleTickets_Load();
+        RuntimeConfig_VehiclesReady();
 	}
 
 	MySQL_TQueryInline(mysql, using inline Vehicle_OnDataLoad, "SELECT * FROM vehicles");
@@ -764,12 +765,12 @@ Vehicle_GetEnumID ( vehicleid ) {
 
 		// #warning This gets called over 5 million times within server restart. Reduce this "sizeof" to the amount of vehicles spawned.
 		// #warning Uncomment this incase shit hits the roof
-		
+
 		if ( ! IsValidVehicle( Vehicle [ i ] [ E_VEHICLE_ID ] ) ) {
 
 			continue ;
 		}
-		
+
 		if ( Vehicle [ i ] [ E_VEHICLE_ID ] == vehicleid ) {
 
 			return i ;
@@ -790,7 +791,7 @@ Vehicle_GetEnumIDFromSQLID ( sql_id ) {
 
 		if ( Vehicle [ i ] [ E_VEHICLE_SQLID ] == sql_id ) {
 			index = i ;
-			
+
 			break;
 		}
 
@@ -805,13 +806,13 @@ Vehicle_GetEnumIDFromSQLID ( sql_id ) {
 Vehicle_GetClosestEntity(playerid, Float: radius = 5.0) {
 
     new Float:fPos[3], Float:curdistance, currentVehicle = INVALID_VEHICLE_ID;
-    
+
     for(new v = 0; v < MAX_VEHICLES; v++) {
 
     	if ( IsValidVehicle ( v ) ) {
-	        GetVehiclePos(v, fPos[0], fPos[1], fPos[2]);        
+	        GetVehiclePos(v, fPos[0], fPos[1], fPos[2]);
 	        curdistance = GetPlayerDistanceFromPoint(playerid, fPos[0], fPos[1], fPos[2]);
-	        
+
 	        if(curdistance < radius) {
 				if(GetVehicleVirtualWorld(v) == GetPlayerVirtualWorld(playerid))
 				{

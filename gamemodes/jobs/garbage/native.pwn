@@ -83,8 +83,9 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys) {
 
 			if ( IsPlayerInDynamicArea(playerid, PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_AREA ]) ) {
 
-				new index = PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_INDEX ] ;
-				new modelid = GetDynamicObjectModel ( garbage_object [ index] ) ;
+				new modelid = GarbageAssignedModel[playerid];
+                if(IsValidDynamicObject(GarbageAssignedObject[playerid])) DestroyDynamicObject(GarbageAssignedObject[playerid]);
+                GarbageAssignedObject[playerid]=0;
 
 				ApplyAnimation(playerid, "BOMBER", "BOM_Plant", 4.1, 0, 0, 0, 0, 0, 1);			
 				GarbageJob_SetAttachment ( playerid, modelid ) ;

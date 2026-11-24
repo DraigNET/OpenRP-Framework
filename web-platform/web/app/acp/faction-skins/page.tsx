@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireStaff } from '@/lib/dal'
 import { ADMIN_LVL } from '@/lib/constants'
 import { FSKIN_MIN_ID, FSKIN_MAX_ID, FSKIN_RESERVED, fskinTierName, fskinInRange } from '@/lib/faction-skins'
-import { squadsForFaction, squadOptions } from '@/lib/constants'
+import { squadOptions } from '@/lib/constants'
 import { FactionFilter, UploadForm, BaseSkinEditor, ToggleModelButton, DeleteUsableButton } from './FactionSkinsClient'
 import { addUsable, updateAllUsable, setLockerTypeForUntyped } from './actions'
 import { ToastForm } from './ToastForm'
@@ -29,7 +29,7 @@ export default async function FactionSkinsPage({ searchParams }: PageProps<'/acp
   const tab: 'models' | 'usable' = firstParam(sp.tab) === 'models' && env.customSkinsEnabled ? 'models' : 'usable'
   const selected = factions.find(f => f.faction_id === wanted) ?? factions[0]
   const selectedId = selected.faction_id
-  const squadMap = squadsForFaction(selected.faction_type, selected.faction_abbrev)
+  const squadMap = await loadFactionSquads(selectedId)
 
   // Next available custom ID
   const rangeRows = await prisma.factionCustomModel.findMany({
@@ -215,3 +215,5 @@ export default async function FactionSkinsPage({ searchParams }: PageProps<'/acp
     </>
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

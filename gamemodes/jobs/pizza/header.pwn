@@ -17,15 +17,16 @@
 // vehicle) for a bonus. /endpizza aborts.
 // -----------------------------------------------------------------
 
-#define PIZZA_DELIVERIES        (5)
+// Route rules are captured at acceptance; cache edits only affect new routes.
+new PizzaRouteCount[MAX_PLAYERS], PizzaRouteMin[MAX_PLAYERS], PizzaRouteMax[MAX_PLAYERS], PizzaRouteBonus[MAX_PLAYERS];
 #define PIZZA_MAX_CANDIDATES    (256)
 
 // Red County is the whole county, not just the towns around the pizzeria: the same box the map zone
 // ZONE_RED_COUNTY covers in config/data/zones.pwn (everything north of Los Santos, east of the Bone County border).
-#define PIZZA_AREA_MIN_X        (-1213.9100)
-#define PIZZA_AREA_MIN_Y        (-768.0270)
-#define PIZZA_AREA_MAX_X        (2997.0600)
-#define PIZZA_AREA_MAX_Y        (596.3490)
+#define PIZZA_AREA_MIN_X (Runtime_Float(RT_PIZZA_MIN_X)) // Cached database setting; edit through ACP.
+#define PIZZA_AREA_MIN_Y (Runtime_Float(RT_PIZZA_MIN_Y)) // Cached database setting; edit through ACP.
+#define PIZZA_AREA_MAX_X (Runtime_Float(RT_PIZZA_MAX_X)) // Cached database setting; edit through ACP.
+#define PIZZA_AREA_MAX_Y (Runtime_Float(RT_PIZZA_MAX_Y)) // Cached database setting; edit through ACP.
 
 // Returns true if a coordinate lies inside the area pizza deliveries are allowed in.
 static bool: PizzaJob_IsEligible(Float:x, Float:y) {
@@ -33,14 +34,14 @@ static bool: PizzaJob_IsEligible(Float:x, Float:y) {
 	return x >= PIZZA_AREA_MIN_X && x <= PIZZA_AREA_MAX_X && y >= PIZZA_AREA_MIN_Y && y <= PIZZA_AREA_MAX_Y;
 }
 
-#define PIZZA_CHECKPOINT_SIZE   (3.0)
+#define PIZZA_CHECKPOINT_SIZE (Runtime_Float(RT_PIZZA_CHECKPOINT_SIZE)) // Cached database setting; edit through ACP.
 #define PIZZA_BOX_MODEL         (1582)
 #define PIZZA_ATTACH_INDEX      (E_ATTACH_INDEX_SYSTEM)
-#define PIZZA_VEHICLE_RANGE     (4.0)
+#define PIZZA_VEHICLE_RANGE (Runtime_Float(RT_PIZZA_VEHICLE_RANGE)) // Cached database setting; edit through ACP.
 #define PIZZA_DELIVER_RANGE     (PIZZA_CHECKPOINT_SIZE + 1.5)
-#define PIZZA_PAY_MIN           (120)
-#define PIZZA_PAY_MAX           (200)
-#define PIZZA_BONUS_PAY         (350)
+#define PIZZA_PAY_MIN (Runtime_Int(RT_PIZZA_PAY_MIN)) // Cached database setting; edit through ACP.
+#define PIZZA_PAY_MAX (Runtime_Int(RT_PIZZA_PAY_MAX)) // Cached database setting; edit through ACP.
+#define PIZZA_BONUS_PAY (Runtime_Int(RT_PIZZA_BONUS)) // Cached database setting; edit through ACP.
 
 // Returns true if a vehicle is a pizza job vehicle.
 IsPizzaJobVehicle(vehicleid) {
@@ -70,8 +71,10 @@ IsPlayerInPizzaJobVehicle(playerid) {
 
 // Chooses the houses for a new route (a nearby group picked at random).
 PizzaJob_BuildRoute(playerid) {
+    PizzaRouteCount[playerid]=Runtime_Int(RT_PIZZA_DELIVERIES);
+    PizzaRouteMin[playerid]=PIZZA_PAY_MIN; PizzaRouteMax[playerid]=PIZZA_PAY_MAX; PizzaRouteBonus[playerid]=PIZZA_BONUS_PAY;
 
-	// Pool every house in Red County together and pick PIZZA_DELIVERIES of them at random.
+	// Pool every house in Red County together and pick PizzaRouteCount[playerid] of them at random.
 	new candidates[PIZZA_MAX_CANDIDATES], count = 0;
 
 	foreach (new i : Properties) {
@@ -86,12 +89,12 @@ PizzaJob_BuildRoute(playerid) {
 		count++;
 	}
 
-	if (count < PIZZA_DELIVERIES) return false;
+	if (count < PizzaRouteCount[playerid]) return false;
 
 	new pool = (count < sizeof(candidates)) ? count : sizeof(candidates);
 
-	// Partial Fisher-Yates shuffle to pick PIZZA_DELIVERIES unique houses.
-	for (new s = 0; s < PIZZA_DELIVERIES; s++) {
+	// Partial Fisher-Yates shuffle to pick PizzaRouteCount[playerid] unique houses.
+	for (new s = 0; s < PizzaRouteCount[playerid]; s++) {
 
 		new r = s + random(pool - s);
 
@@ -120,10 +123,10 @@ PizzaJob_SetHouseCheckpoint(playerid) {
 	new zone[MAX_MAP_ZONE_NAME];
 	GetCoords2DZone(x, y, zone);
 
-	GPS_MarkLocation(playerid, sprintf("~g~Pizza delivery~w~ (%d/%d) in %s.", idx + 1, PIZZA_DELIVERIES, zone),
+	GPS_MarkLocation(playerid, sprintf("~g~Pizza delivery~w~ (%d/%d) in %s.", idx + 1, PizzaRouteCount[playerid], zone),
 		E_GPS_COLOR_JOB, x, y, z);
 
-	ShowPlayerInfoMessage(playerid, sprintf("Drive to house %d/%d. Get out, press ~k~~CONVERSATION_YES~ next to the Pizzaboy to grab a pizza, then enter the ~g~checkpoint~w~.", idx + 1, PIZZA_DELIVERIES),
+	ShowPlayerInfoMessage(playerid, sprintf("Drive to house %d/%d. Get out, press ~k~~CONVERSATION_YES~ next to the Pizzaboy to grab a pizza, then enter the ~g~checkpoint~w~.", idx + 1, PizzaRouteCount[playerid]),
 		.height = 167.5, .width = 180, .showtime = 7000);
 }
 
@@ -176,7 +179,7 @@ PizzaJob_TryDeliver(playerid) {
 		return;
 	}
 
-	new pay = PIZZA_PAY_MIN + random(PIZZA_PAY_MAX - PIZZA_PAY_MIN + 1);
+	new pay = PizzaRouteMin[playerid] + random(PizzaRouteMax[playerid] - PizzaRouteMin[playerid] + 1);
 	GivePlayerCash(playerid, pay, "Pizza delivery payout");
 
 	// Drop the box / stop carrying. The carry anim is applied frozen+looped, so a bare
@@ -195,9 +198,9 @@ PizzaJob_TryDeliver(playerid) {
 	GameTextForPlayer(playerid, sprintf("~g~Pizza delivered!~n~~w~$%s", IntegerWithDelimiter(pay)), 3000, 6);
 
 	AddLogEntry(playerid, LOG_TYPE_JOB, sprintf("delivered a pizza (%d/%d) for %d.",
-		PlayerVar[playerid][E_PLAYER_PIZZAJOB_DELIVERED], PIZZA_DELIVERIES, pay));
+		PlayerVar[playerid][E_PLAYER_PIZZAJOB_DELIVERED], PizzaRouteCount[playerid], pay));
 
-	if (PlayerVar[playerid][E_PLAYER_PIZZAJOB_INDEX] >= PIZZA_DELIVERIES) {
+	if (PlayerVar[playerid][E_PLAYER_PIZZAJOB_INDEX] >= PizzaRouteCount[playerid]) {
 
 		PizzaJob_BeginReturn(playerid);
 	}
@@ -218,12 +221,12 @@ PizzaJob_CompleteReturn(playerid) {
 		return;
 	}
 
-	GivePlayerCash(playerid, PIZZA_BONUS_PAY, "Pizza route bonus");
+	GivePlayerCash(playerid, PizzaRouteBonus[playerid], "Pizza route bonus");
 	GiveFnRPoints(playerid, 1, "Pizza delivery job");
 
-	GameTextForPlayer(playerid, sprintf("~y~Route complete!~n~~w~Bonus $%s", IntegerWithDelimiter(PIZZA_BONUS_PAY)), 4000, 6);
+	GameTextForPlayer(playerid, sprintf("~y~Route complete!~n~~w~Bonus $%s", IntegerWithDelimiter(PizzaRouteBonus[playerid])), 4000, 6);
 
-	AddLogEntry(playerid, LOG_TYPE_JOB, sprintf("completed a pizza route and earned a %d bonus.", PIZZA_BONUS_PAY));
+	AddLogEntry(playerid, LOG_TYPE_JOB, sprintf("completed a pizza route and earned a %d bonus.", PizzaRouteBonus[playerid]));
 
 	SendServerMessage(playerid, COLOR_JOB, "Pizza Job", "DEDEDE", "You've completed the route! Use /pizza to start another.");
 
@@ -239,7 +242,7 @@ PizzaJob_ClearState(playerid) {
 	PlayerVar[playerid][E_PLAYER_PIZZAJOB_DELIVERED] = 0;
 	PlayerVar[playerid][E_PLAYER_PIZZAJOB_VEHICLE]   = INVALID_VEHICLE_ID;
 
-	for (new i = 0; i < PIZZA_DELIVERIES; i++) {
+	for (new i = 0; i < 20; i++) {
 		PlayerVar[playerid][E_PLAYER_PIZZAJOB_HOUSES][i] = INVALID_PROPERTY_ID;
 	}
 
@@ -286,7 +289,7 @@ CMD:pizza(playerid, params[]) {
 
 	AddLogEntry(playerid, LOG_TYPE_JOB, "started the pizza delivery job");
 
-	SendServerMessage(playerid, COLOR_JOB, "Pizza Job", "DEDEDE", sprintf("Deliver %d pizzas around Red County. Head to the first checkpoint.", PIZZA_DELIVERIES));
+	SendServerMessage(playerid, COLOR_JOB, "Pizza Job", "DEDEDE", sprintf("Deliver %d pizzas around Red County. Head to the first checkpoint.", PizzaRouteCount[playerid]));
 
 	PizzaJob_SetHouseCheckpoint(playerid);
 
@@ -404,4 +407,12 @@ hook OnPlayerDisconnect(playerid, reason) {
 	}
 
 	return 1;
+}
+// Keep every remaining accepted pizza stop at its current entrance until the
+// route finishes or is cancelled; its checkpoint and distance checks must agree.
+Pizza_PropertyInUse(propertyIndex) {
+    foreach(new player:Player) if(PlayerVar[player][E_PLAYER_PIZZAJOB] && !PlayerVar[player][E_PLAYER_PIZZAJOB_RETURNING]) {
+        for(new routeSlot=PlayerVar[player][E_PLAYER_PIZZAJOB_INDEX];routeSlot<PizzaRouteCount[player];routeSlot++) if(PlayerVar[player][E_PLAYER_PIZZAJOB_HOUSES][routeSlot]==propertyIndex) return 1;
+    }
+    return 0;
 }

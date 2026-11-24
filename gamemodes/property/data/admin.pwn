@@ -11,6 +11,7 @@
 // /propertycreate [price] [type] (tier) - (admin) creates a property at your position. Type 0 =
 // house, 1 = business, 2 = static.
 CMD:propertycreate(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_BETA ) {
 
@@ -47,6 +48,7 @@ CMD:propertycreate(playerid, params[]) {
 
 // /propertymove [id] - (admin) moves a property's entrance to your position.
 CMD:propertymove(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
 
@@ -60,7 +62,7 @@ CMD:propertymove(playerid, params[]) {
 
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -70,6 +72,7 @@ CMD:propertymove(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (not set up)!") ;
 	}
 
+    if(Runtime_PropertyEntranceInUse(id)) return SendClientMessage(playerid,COLOR_ERROR,"Wait for active deliveries and burglary sessions before moving this entrance.");
 	new Float: x, Float: y, Float: z ;
 	GetPlayerPos ( playerid, x, y, z ) ;
 
@@ -104,6 +107,7 @@ CMD:propertymove(playerid, params[]) {
 
 // /propertydelete [id] - (admin) deletes a property and refunds its owner.
 CMD:propertydelete(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
 
@@ -117,7 +121,7 @@ CMD:propertydelete(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", "/propertydelete [id]") ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -189,7 +193,7 @@ CMD:propertygoto(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", "/propertygoto [id]") ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -262,7 +266,7 @@ CMD:propertyprice(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", "Price can't be less than 2,500 or more than 1,000,000.") ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -301,6 +305,7 @@ CMD:propertyprice(playerid, params[]) {
 }
 // /propertytype [id] [type] - (admin) changes a property between house, business and static.
 CMD:propertytype(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
 
@@ -323,7 +328,7 @@ CMD:propertytype(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", sprintf("Type can't be less than %d or more than %d.", E_PROPERTY_TYPE_HOUSE, E_PROPERTY_TYPE_STATIC )) ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -367,7 +372,7 @@ CMD:propertyfaction(playerid, params[])
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", "/propertyfaction [id] [faction SQL id]") ;
 	}
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -408,7 +413,7 @@ CMD:propertyowner(playerid, params[]) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", "/propertyowner [id] [char id]") ;
 	}
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -462,7 +467,7 @@ CMD:propertyauction(playerid, params[]) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "A3A3A3", "/propertyauction [id]") ;
 	}
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -525,7 +530,7 @@ Property_RefundPlayer(playerid, id) {
 
 
 	if ( id > 0 || id < MAX_PROPERTIES ) {
-		if ( id > MAX_PROPERTIES ) {
+		if ( id >= MAX_PROPERTIES ) {
 
 			return true ;
 		} 
@@ -556,6 +561,7 @@ Property_RefundPlayer(playerid, id) {
 
 // /propertybuytype [id] [type] - (admin) sets what a business sells (see /buypointtypes).
 CMD:propertybuytype(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
@@ -571,7 +577,7 @@ CMD:propertybuytype(playerid, params[]) {
 		return true ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -599,6 +605,7 @@ CMD:propertybuytype(playerid, params[]) {
 
 // /propertyextra [id] [type] - (admin) sets a business's extra point type.
 CMD:propertyextra(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
@@ -612,7 +619,7 @@ CMD:propertyextra(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "DEDEDE", "/propertyextra [id] [type]") ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -646,7 +653,7 @@ CMD:propertyextra(playerid, params[]) {
 			new query [ 256 ] ;
 
 			mysql_format(mysql, query, sizeof ( query ) , "UPDATE properties SET property_extra_type = %d, property_extra_pos_x = '%f',\
-				property_extra_pos_y = '%f', property_extra_pos_z = '%f', property_extra_int = %d, property_extra_vw = %d WHERE property_id = %d",
+				property_extra_pos_y = '%f', property_extra_pos_z = '%f', property_extra_pos_int = %d, property_extra_pos_vw = %d WHERE property_id = %d",
 					Property [ id ] [ E_PROPERTY_EXTRA_TYPE ],
 					Property [ id ] [ E_PROPERTY_EXTRA_POS_X ],
 					Property [ id ] [ E_PROPERTY_EXTRA_POS_Y ],
@@ -669,6 +676,7 @@ CMD:propertyextra(playerid, params[]) {
 
 // /propertybuypoint [id] - (admin) moves a business's buy point to your position.
 CMD:propertybuypoint(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
 
@@ -681,7 +689,7 @@ CMD:propertybuypoint(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Syntax", "DEDEDE", "/propertybuypoint [id]") ;
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -741,6 +749,7 @@ CMD:propertybuypoint(playerid, params[]) {
 // /propertyintid [id] [interior world] - (admin) sets only the interior id of a property's inside.
 CMD:propertyintid(playerid, params[]) 
 {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_GENERAL ) 
 	{
 		return SendServerMessage ( playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.") ;
@@ -753,7 +762,7 @@ CMD:propertyintid(playerid, params[])
 		return SendClientMessage(playerid, 0xDEDEDEFF, "This sets only the interior ID.");
 	}
 
-	if ( id < 0 || id > MAX_PROPERTIES ) {
+	if ( id < 0 || id >= MAX_PROPERTIES ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Invalid property ID entered (doesn't exist)!") ;
 	}
@@ -784,6 +793,7 @@ CMD:propintid(playerid, params[]) {
 
 // /propertyinterior [id] - (admin) sets a property's interior to where you are standing.
 CMD:propertyinterior(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
 
@@ -833,6 +843,7 @@ CMD:propertyinterior(playerid, params[]) {
 
 // /propertyworld [id] [vw] - (admin) sets a property's interior virtual world.
 CMD:propertyworld(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
     if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_SENIOR ) {
 

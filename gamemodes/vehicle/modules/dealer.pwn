@@ -27,7 +27,7 @@ enum { // dealership types
 #define MAX_DEALERSHIPS             (24)
 #define INVALID_DEALERSHIP_ID       (-1)
 
-#define DEALER_WHOLESALE_PCT        (70)    // what an owner pays per car, as a % of the catalogue price
+#define DEALER_WHOLESALE_PCT (Runtime_Int(RT_VEHICLES_WHOLESALE_PERCENT)) // Cached database setting; edit through ACP.
 #define DEALER_MAX_STOCK            (10)    // most cars of a single model an owner can hold
 #define DEALER_INACTIVE_DAYS        (7)     // owner offline this long and the dealership is foreclosed
 
@@ -45,6 +45,7 @@ enum DealershipData {
 	Float: dealership_spawn_z,
 	Float: dealership_spawn_a,
 
+	dealership_interior, dealership_world, dealership_spawn_interior, dealership_spawn_world,
 	dealership_owner_char, // character id, 0 = vacant
 	dealership_owner_name [ 32 ],
 	dealership_bank,
@@ -57,6 +58,8 @@ enum DealershipData {
 }
 
 new Dealerships [ MAX_DEALERSHIPS ] [ DealershipData ] ;
+static DealerMenuGeneration[MAX_PLAYERS],DealerMenuId[MAX_PLAYERS],DealerMenuDiscount[MAX_PLAYERS];
+static DealerGeneration[MAX_DEALERSHIPS],DealerMenuPrices[MAX_PLAYERS][212];
 
 enum DealershipCarData {
 
@@ -66,137 +69,7 @@ enum DealershipCarData {
 	dealercar_product
 }
 
-new DealershipCars[][DealershipCarData] = {
-
-    // SPORTS (performance tier)
-    { DEALERSHIP_TYPE_SPORTS, 496, 12000 },    // Blista Compact
-    { DEALERSHIP_TYPE_SPORTS, 589, 15000 },    // Club
-    { DEALERSHIP_TYPE_SPORTS, 587, 22000 },    // Euros
-    { DEALERSHIP_TYPE_SPORTS, 565, 38000 },    // Flash
-    { DEALERSHIP_TYPE_SPORTS, 558, 42000 },    // Uranus
-    { DEALERSHIP_TYPE_SPORTS, 559, 45000 },    // Jester
-    { DEALERSHIP_TYPE_SPORTS, 480, 48000 },    // Comet
-    { DEALERSHIP_TYPE_SPORTS, 477, 52000 },    // ZR-350
-
-    // SPORTS (EXOTIC)
-    { DEALERSHIP_TYPE_SPORTS, 555, 120000 },   // Windsor
-    { DEALERSHIP_TYPE_SPORTS, 429, 160000 },   // Banshee
-    { DEALERSHIP_TYPE_SPORTS, 506, 190000 },   // Super GT
-    { DEALERSHIP_TYPE_SPORTS, 415, 220000 },   // Cheetah
-    { DEALERSHIP_TYPE_SPORTS, 541, 250000 },   // Bullet
-    { DEALERSHIP_TYPE_SPORTS, 451, 300000 },   // Turismo
-    { DEALERSHIP_TYPE_SPORTS, 562, 320000 },   // Elegy
-    { DEALERSHIP_TYPE_SPORTS, 560, 350000 },   // Sultan
-    { DEALERSHIP_TYPE_SPORTS, 561, 140000 },   // Stratum
-
-    // BUDGET
-    { DEALERSHIP_TYPE_BUDGET, 518, 32000 },    // Buccaneer
-    { DEALERSHIP_TYPE_BUDGET, 527, 9500 },     // Cadrona
-    { DEALERSHIP_TYPE_BUDGET, 419, 7000 },     // Esperanto
-    { DEALERSHIP_TYPE_BUDGET, 533, 16500 },    // Feltzer
-    { DEALERSHIP_TYPE_BUDGET, 526, 8000 },     // Fortune
-    { DEALERSHIP_TYPE_BUDGET, 474, 12000 },    // Hermes
-    { DEALERSHIP_TYPE_BUDGET, 517, 19000 },    // Majestic
-    { DEALERSHIP_TYPE_BUDGET, 410, 3500 },     // Manana
-    { DEALERSHIP_TYPE_BUDGET, 600, 9000 },     // Picador
-    { DEALERSHIP_TYPE_BUDGET, 436, 4200 },     // Previon
-    { DEALERSHIP_TYPE_BUDGET, 439, 13500 },    // Stallion
-    { DEALERSHIP_TYPE_BUDGET, 549, 30000 },    // Tampa
-    { DEALERSHIP_TYPE_BUDGET, 491, 10000 },    // Virgo
-    { DEALERSHIP_TYPE_BUDGET, 445, 21000 },    // Admiral
-    { DEALERSHIP_TYPE_BUDGET, 507, 16500 },    // Elegant
-    { DEALERSHIP_TYPE_BUDGET, 585, 12000 },    // Emperor
-    { DEALERSHIP_TYPE_BUDGET, 466, 18000 },    // Glendale
-    { DEALERSHIP_TYPE_BUDGET, 492, 13500 },    // Greenwood
-    { DEALERSHIP_TYPE_BUDGET, 546, 11000 },    // Intruder
-    { DEALERSHIP_TYPE_BUDGET, 551, 15000 },    // Merit
-    { DEALERSHIP_TYPE_BUDGET, 516, 14000 },    // Nebula
-    { DEALERSHIP_TYPE_BUDGET, 467, 15500 },    // Oceanic
-    { DEALERSHIP_TYPE_BUDGET, 404, 6500 },     // Perennial
-    { DEALERSHIP_TYPE_BUDGET, 426, 12000 },    // Premier
-    { DEALERSHIP_TYPE_BUDGET, 547, 8500 },     // Primo
-    { DEALERSHIP_TYPE_BUDGET, 479, 7500 },     // Regina
-    { DEALERSHIP_TYPE_BUDGET, 405, 11500 },    // Sentinel
-    { DEALERSHIP_TYPE_BUDGET, 458, 6000 },     // Solair
-    { DEALERSHIP_TYPE_BUDGET, 580, 26000 },    // Stafford
-    { DEALERSHIP_TYPE_BUDGET, 550, 10000 },    // Sunrise
-    { DEALERSHIP_TYPE_BUDGET, 540, 11500 },    // Vincent
-    { DEALERSHIP_TYPE_BUDGET, 421, 10500 },    // Washington
-    { DEALERSHIP_TYPE_BUDGET, 529, 8000 },     // Willard
-    { DEALERSHIP_TYPE_BUDGET, 566, 15600 },    // Tahoma
-    { DEALERSHIP_TYPE_BUDGET, 412, 9000 },     // Voodoo
-    { DEALERSHIP_TYPE_BUDGET, 534, 15000 },    // Remington
-    { DEALERSHIP_TYPE_BUDGET, 535, 16000 },    // Slamvan
-    { DEALERSHIP_TYPE_BUDGET, 536, 19500 },    // Blade
-    { DEALERSHIP_TYPE_BUDGET, 567, 22000 },    // Savanna
-    { DEALERSHIP_TYPE_BUDGET, 575, 17500 },    // Broadway
-    { DEALERSHIP_TYPE_BUDGET, 576, 19000 },    // Tornado
-    { DEALERSHIP_TYPE_BUDGET, 418, 7000 },     // Moonbeam
-    { DEALERSHIP_TYPE_BUDGET, 400, 14000 },    // Landstalker
-    { DEALERSHIP_TYPE_BUDGET, 483, 18000 },    // Camper
-
-    // UTILITY
-    { DEALERSHIP_TYPE_UTILITY, 459, 18000 },   // Topfun Van
-    { DEALERSHIP_TYPE_UTILITY, 482, 26000 },   // Burrito
-    { DEALERSHIP_TYPE_UTILITY, 413, 15000 },   // Pony
-    { DEALERSHIP_TYPE_UTILITY, 440, 22000 },   // Rumpo
-    { DEALERSHIP_TYPE_UTILITY, 414, 30000 },   // Mule
-    { DEALERSHIP_TYPE_UTILITY, 499, 55000 },   // Benson
-    { DEALERSHIP_TYPE_UTILITY, 498, 48000 },   // Boxville
-    { DEALERSHIP_TYPE_UTILITY, 456, 65000 },   // Yankee
-    { DEALERSHIP_TYPE_UTILITY, 478, 10000 },   // Walton
-    { DEALERSHIP_TYPE_UTILITY, 543, 9000 },    // Sadler
-    { DEALERSHIP_TYPE_UTILITY, 422, 12000 },   // Bobcat
-    { DEALERSHIP_TYPE_UTILITY, 455, 42000 },   // Flatbed
-    { DEALERSHIP_TYPE_UTILITY, 554, 28000 },   // Yosemite
-    { DEALERSHIP_TYPE_UTILITY, 403, 80000 },   // Linerunner
-    { DEALERSHIP_TYPE_UTILITY, 514, 90000 },   // Tanker
-    { DEALERSHIP_TYPE_UTILITY, 515, 95000 },   // Roadtrain
-    { DEALERSHIP_TYPE_UTILITY, 420, 25000 },   // Taxi
-    { DEALERSHIP_TYPE_UTILITY, 438, 15000 },   // Cabbie
-
-    // MUSCLE
-    { DEALERSHIP_TYPE_MUSCLE, 579, 27000 },    // Huntley
-    { DEALERSHIP_TYPE_MUSCLE, 500, 19000 },    // Mesa
-    { DEALERSHIP_TYPE_MUSCLE, 489, 16000 },    // Rancher
-    { DEALERSHIP_TYPE_MUSCLE, 603, 46000 },    // Phoenix
-    { DEALERSHIP_TYPE_MUSCLE, 402, 42000 },    // Buffalo
-    { DEALERSHIP_TYPE_MUSCLE, 475, 28000 },    // Sabre
-    { DEALERSHIP_TYPE_MUSCLE, 542, 18000 },    // Clover
-    { DEALERSHIP_TYPE_MUSCLE, 545, 52000 },    // Hustler
-
-    // BIKE
-    { DEALERSHIP_TYPE_BIKE, 509, 400 },        // Bike
-    { DEALERSHIP_TYPE_BIKE, 481, 550 },        // BMX
-    { DEALERSHIP_TYPE_BIKE, 510, 1500 },       // Mountain Bike
-    { DEALERSHIP_TYPE_BIKE, 462, 2250 },       // Faggio
-    { DEALERSHIP_TYPE_BIKE, 448, 4000 },       // Pizzaboy
-    { DEALERSHIP_TYPE_BIKE, 468, 25000 },      // Sanchez
-    { DEALERSHIP_TYPE_BIKE, 581, 56500 },      // BF-400
-    { DEALERSHIP_TYPE_BIKE, 586, 16500 },      // Wayfarer
-    { DEALERSHIP_TYPE_BIKE, 471, 27000 },      // Quad
-    { DEALERSHIP_TYPE_BIKE, 463, 30000 },      // Freeway
-    { DEALERSHIP_TYPE_BIKE, 521, 84500 },      // FCR-900
-    { DEALERSHIP_TYPE_BIKE, 461, 89000 },      // PCJ-600
-
-    // BOAT
-    { DEALERSHIP_TYPE_BOAT, 473, 30000 },      // Dinghy
-    { DEALERSHIP_TYPE_BOAT, 453, 50000 },      // Reefer
-    { DEALERSHIP_TYPE_BOAT, 446, 150000 },     // Squallo
-    { DEALERSHIP_TYPE_BOAT, 452, 200000 },     // Speeder
-    { DEALERSHIP_TYPE_BOAT, 454, 250000 },     // Tropic
-    { DEALERSHIP_TYPE_BOAT, 484, 280000 },     // Marquis
-    { DEALERSHIP_TYPE_BOAT, 493, 300000 },     // Jetmax
-
-    // AIRCRAFT
-    { DEALERSHIP_TYPE_AIRCRAFT, 593, 1550000 }, // Dodo
-    { DEALERSHIP_TYPE_AIRCRAFT, 512, 1550000 }, // Cropduster
-    { DEALERSHIP_TYPE_AIRCRAFT, 513, 1510000 }, // Stuntplane
-    { DEALERSHIP_TYPE_AIRCRAFT, 511, 1800000 }, // Beagle
-    { DEALERSHIP_TYPE_AIRCRAFT, 487, 1770000 }, // Maverick
-    { DEALERSHIP_TYPE_AIRCRAFT, 519, 1800000 }, // Shamal
-    { DEALERSHIP_TYPE_AIRCRAFT, 553, 2100000 }  // Nevada
-};
+#include "config/runtime/vehicle-catalog.pwn"
 
 
 // Stock per dealership per catalogue entry (same index as DealershipCars). Only meaningful while the
@@ -207,36 +80,25 @@ new DealerStock [ MAX_DEALERSHIPS ] [ sizeof ( DealershipCars ) ] ;
 // Catalogue helpers
 // ---------------------------------------------------------------------------------------------
 
-// Returns the price of a model in the dealership catalogue.
-stock DealerShip_GetModelPrice(modelid) {
-
-    for ( new i, j = sizeof (DealershipCars ) ; i < j ; i ++ ) {
-
-        if ( DealershipCars [ i ] [ dealercar_carmodel ] == modelid ) {
-
-            return DealershipCars [ i ] [ dealercar_price ] ;
-        }
-    }
-
-    return 7500 ;
+// The shared runtime catalogue is authoritative for prices and sale availability.
+stock bool:Dealer_ModelAvailable(modelid) {
+    return modelid>=400 && modelid<=611 && RuntimeModelEnabled[modelid-400] && RuntimeModelPrices[modelid-400]>=0;
 }
-
-// New price of a model from the catalogue, or 0 if no dealership sells it.
+stock DealerShip_GetModelPrice(modelid) {
+    if(!Dealer_ModelAvailable(modelid)) return 7500;
+    return RuntimeModelPrices[modelid-400];
+}
 Vehicle_GetCatalogPrice(modelid) {
-
-	for ( new i, j = sizeof ( DealershipCars ); i < j; i ++ ) {
-
-		if ( DealershipCars [ i ] [ dealercar_carmodel ] == modelid ) {
-
-			return DealershipCars [ i ] [ dealercar_price ] ;
-		}
-	}
-
-	return 0 ;
+    if(!Dealer_ModelAvailable(modelid)) return 0;
+    return RuntimeModelPrices[modelid-400];
+}
+stock Dealer_GetPriceAt(index) {
+    return Vehicle_GetCatalogPrice(DealershipCars[index][dealercar_carmodel]);
 }
 
 // Index into DealershipCars of a model sold by this dealership type, or -1.
 Dealer_GetCatalogIndex(type, modelid) {
+    if(!Dealer_ModelAvailable(modelid)) return -1;
 
 	for ( new i, j = sizeof ( DealershipCars ); i < j; i ++ ) {
 
@@ -252,7 +114,7 @@ Dealer_GetCatalogIndex(type, modelid) {
 // What an owner pays the manufacturer for one car.
 Dealer_GetWholesale(price) {
 
-	return price * DEALER_WHOLESALE_PCT / 100 ;
+	return Runtime_MoneyPercent(price,DEALER_WHOLESALE_PCT) ;
 }
 
 // Starting stock a new owner is given for a model, scaled by price so a $2M aircraft doesn't come
@@ -372,7 +234,7 @@ Dealership_GetClosestEntity(playerid) {
 			continue ;
 		}
 
-		if ( IsPlayerInRangeOfPoint ( playerid, 2.5, Dealerships [ i ] [ dealership_pos_x ],
+		if ( GetPlayerInterior(playerid)==Dealerships[i][dealership_interior] && GetPlayerVirtualWorld(playerid)==Dealerships[i][dealership_world] && IsPlayerInRangeOfPoint ( playerid, 2.5, Dealerships [ i ] [ dealership_pos_x ],
 			Dealerships [ i ] [ dealership_pos_y ], Dealerships [ i ] [ dealership_pos_z ] ) ) {
 
 			return i ;
@@ -508,7 +370,7 @@ Dealership_FillDefaultStock(dealerid) {
 			continue ;
 		}
 
-		Dealership_SetStock ( dealerid, i, Dealer_GetDefaultStock ( DealershipCars [ i ] [ dealercar_price ] ) ) ;
+		Dealership_SetStock ( dealerid, i, Dealer_GetDefaultStock ( Dealer_GetPriceAt(i) ) ) ;
 	}
 
 	return true ;
@@ -557,13 +419,14 @@ Dealership_RefreshLabel(dealerid) {
 
 	Dealerships [ dealerid ] [ dealership_label ] = CreateDynamic3DTextLabel ( text, Dealerships [ dealerid ] [ dealership_color ],
 		Dealerships [ dealerid ] [ dealership_pos_x ], Dealerships [ dealerid ] [ dealership_pos_y ], Dealerships [ dealerid ] [ dealership_pos_z ],
-		15.0, INVALID_PLAYER_ID, INVALID_VEHICLE_ID, 1, 0, 0, -1 ) ;
+		15.0, INVALID_PLAYER_ID, INVALID_VEHICLE_ID, 1, Dealerships[dealerid][dealership_world], Dealerships[dealerid][dealership_interior], -1 ) ;
 
 	return true ;
 }
 
 // Creates the dealership's pickup and label.
 Dealership_CreateVisuals(dealerid) {
+    Dealer_PlacementChanged(dealerid);
 
 	Dealership_RefreshLabel ( dealerid ) ;
 
@@ -571,10 +434,10 @@ Dealership_CreateVisuals(dealerid) {
 	GPS_SyncDealerships () ;
 
 	Dealerships [ dealerid ] [ dealership_pickup ] = CreateDynamicPickup ( 1581, 1, Dealerships [ dealerid ] [ dealership_pos_x ],
-		Dealerships [ dealerid ] [ dealership_pos_y ], Dealerships [ dealerid ] [ dealership_pos_z ] ) ;
+		Dealerships [ dealerid ] [ dealership_pos_y ], Dealerships [ dealerid ] [ dealership_pos_z ], Dealerships[dealerid][dealership_world], Dealerships[dealerid][dealership_interior] ) ;
 
 	Dealerships [ dealerid ] [ dealership_icon ] = CreateDynamicMapIcon ( Dealerships [ dealerid ] [ dealership_pos_x ],
-		Dealerships [ dealerid ] [ dealership_pos_y ], Dealerships [ dealerid ] [ dealership_pos_z ], 55, 0, -1, -1, -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL ) ;
+		Dealerships [ dealerid ] [ dealership_pos_y ], Dealerships [ dealerid ] [ dealership_pos_z ], 55, 0, Dealerships[dealerid][dealership_world], Dealerships[dealerid][dealership_interior], -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL ) ;
 
 	return true ;
 }
@@ -736,6 +599,7 @@ Dealership_LoadStock() {
 				DealerStock [ dealerid ] [ cat_index ] = qty ;
 			}
 		}
+        RuntimeConfig_DealersReady();
 	}
 
 	MySQL_TQueryInline ( mysql, using inline Dealership_OnStockLoad, "SELECT dealer_id, model_id, qty FROM dealership_stock", "" ) ;
@@ -773,6 +637,10 @@ Dealership_LoadEntities() {
 			cache_get_value_name_float ( i, "dealer_spawn_z", Dealerships [ i ] [ dealership_spawn_z ] ) ;
 			cache_get_value_name_float ( i, "dealer_spawn_a", Dealerships [ i ] [ dealership_spawn_a ] ) ;
 
+            cache_get_value_name_int(i,"dealer_interior",Dealerships[i][dealership_interior]);
+            cache_get_value_name_int(i,"dealer_world",Dealerships[i][dealership_world]);
+            cache_get_value_name_int(i,"dealer_spawn_interior",Dealerships[i][dealership_spawn_interior]);
+            cache_get_value_name_int(i,"dealer_spawn_world",Dealerships[i][dealership_spawn_world]);
 			cache_get_value_name_int ( i, "dealer_owner_char_id", Dealerships [ i ] [ dealership_owner_char ] ) ;
 			cache_get_value_name ( i, "dealer_owner_name", Dealerships [ i ] [ dealership_owner_name ], 32 ) ;
 			cache_get_value_name_int ( i, "dealer_bank", Dealerships [ i ] [ dealership_bank ] ) ;
@@ -821,6 +689,8 @@ CMD:gotodealer(playerid, params[]) {
 	}
 
 	PauseAC(playerid, 3);
+    SetPlayerInterior(playerid,Dealerships[dealerid][dealership_interior]);
+    SetPlayerVirtualWorld(playerid,Dealerships[dealerid][dealership_world]);
 	SetPlayerPos ( playerid, Dealerships [ dealerid ] [ dealership_pos_x ], Dealerships [ dealerid ] [ dealership_pos_y ], Dealerships [ dealerid ] [ dealership_pos_z ] ) ;
 	SetPlayerInterior(playerid, 0);
 	SetPlayerVirtualWorld(playerid, 0);
@@ -868,6 +738,22 @@ static stock Dealer_GetDiscountPercent(playerid)
     return 0; // Regular + Early Supporter + Bronze
 }
 
+// Capture displayed prices and placement identity. Unrelated vehicle parking
+// revisions do not invalidate a purchase, while a changed quote requires reopening.
+Dealer_CaptureMenuContext(playerid,dealerid) {
+    DealerMenuGeneration[playerid]=DealerGeneration[dealerid];DealerMenuId[playerid]=Dealerships[dealerid][dealership_sqlid];DealerMenuDiscount[playerid]=Dealer_GetDiscountPercent(playerid);
+    for(new m;m<212;m++)DealerMenuPrices[playerid][m]=-1;
+    for(new i;i<sizeof DealershipCars;i++)if(DealershipCars[i][dealercar_type]==Dealerships[dealerid][dealership_type] && Dealer_ModelAvailable(DealershipCars[i][dealercar_carmodel]))DealerMenuPrices[playerid][DealershipCars[i][dealercar_carmodel]-400]=Dealer_GetPriceAt(i);
+    return 1;
+}
+
+// This guards the quoted menu context; the purchase callback separately checks
+// current licence, location, incapacitation, stock, money and ownership slots.
+Dealer_MenuCurrent(playerid,dealerid,model) {
+    if(!Dealership_IsValid(dealerid) || model<400 || model>611 || !Dealer_ModelAvailable(model))return 0;
+    return DealerMenuId[playerid]==Dealerships[dealerid][dealership_sqlid] && DealerMenuGeneration[playerid]==DealerGeneration[dealerid] && DealerMenuPrices[playerid][model-400]==Vehicle_GetCatalogPrice(model) && DealerMenuDiscount[playerid]==Dealer_GetDiscountPercent(playerid);
+}
+
 // /dealership - opens the dealership catalogue.
 CMD:dealership(playerid, params[]) {
 	if ( IsPlayerIncapacitated(playerid, false) ) {
@@ -886,7 +772,7 @@ CMD:dealership(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "Dealerships are currently unavailable." );
 
 	if ( ! Character [ playerid ] [ E_CHARACTER_DRIVERSLICENSE ]) {
-		SendClientMessage(playerid, COLOR_ERROR, "You don't own a drivers license, you need one to purchase a vehicle.");
+		return SendClientMessage(playerid, COLOR_ERROR, "You don't own a drivers license, you need one to purchase a vehicle.");
 	}
 
 	if ( Player_GetOwnedVehicles ( playerid ) >= Player_GetMaxOwnedVehicles ( playerid ) ) {
@@ -899,7 +785,7 @@ CMD:dealership(playerid, params[]) {
 
 	for ( new i, j = sizeof ( DealershipCars ); i < j; i ++ ) {
 
-    	if ( DealershipCars [ i ] [ dealercar_type ] == Dealerships [ dealerid ] [ dealership_type] ) {
+		if ( Dealer_ModelAvailable(DealershipCars[i][dealercar_carmodel]) && DealershipCars [ i ] [ dealercar_type ] == Dealerships [ dealerid ] [ dealership_type] ) {
 
     		new stock_text [ 24 ] ;
 
@@ -927,14 +813,14 @@ CMD:dealership(playerid, params[]) {
 
 				format ( dealer_name, sizeof ( dealer_name ), "%s ($%s) %s%d slots%s",
 					ReturnVehicleModelName (  DealershipCars [ i ] [ dealercar_carmodel ] ),
-					IntegerWithDelimiter( DealershipCars [ i ] [ dealercar_price ] ), slot_hex, slots, stock_text
+					IntegerWithDelimiter( Dealer_GetPriceAt(i) ), slot_hex, slots, stock_text
 				) ;
     		}
 
     		else {
 				format ( dealer_name, sizeof ( dealer_name ), "%s ($%s)%s",
 					ReturnVehicleModelName (  DealershipCars [ i ] [ dealercar_carmodel ] ),
-					IntegerWithDelimiter( DealershipCars [ i ] [ dealercar_price ] ), stock_text
+					IntegerWithDelimiter( Dealer_GetPriceAt(i) ), stock_text
 				) ;
 			}
 
@@ -942,6 +828,7 @@ CMD:dealership(playerid, params[]) {
 		}
 	}
 
+    Dealer_CaptureMenuContext(playerid,dealerid);
 	ModelBrowser_SetupTiles(playerid, "Dealership", "dealer_list" );
 
     return true ;
@@ -949,6 +836,8 @@ CMD:dealership(playerid, params[]) {
 
 // Model browser callback: the player picks a vehicle to buy.
 mBrowser:dealer_list(playerid, response, row, model, name[]) {
+    if(response && Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration changed. Reopen the dealership catalogue.");
+    if(response && (Server[E_SERVER_IS_DS_OFF] || !Character[playerid][E_CHARACTER_DRIVERSLICENSE] || IsPlayerIncapacitated(playerid,false))) return SendClientMessage(playerid,COLOR_ERROR,"You cannot purchase a vehicle right now.");
 
 	if ( ! response ) {
 
@@ -958,25 +847,25 @@ mBrowser:dealer_list(playerid, response, row, model, name[]) {
 	else if ( response ) {
 		new dealerid = Dealership_GetClosestEntity(playerid);
 
-		if ( dealerid == INVALID_DEALERSHIP_ID ) {
+		if ( dealerid == INVALID_DEALERSHIP_ID || !Dealer_MenuCurrent(playerid,dealerid,model) ) {
 
 			return SendClientMessage(playerid, COLOR_ERROR, "Error{A3A3A3}: You're not at a dealership!");
 		}
 
 		new enumid = Dealer_GetCatalogIndex ( Dealerships [ dealerid ] [ dealership_type ], model ) ;
 
-		if (enumid == -1)
+		if (enumid == -1 || !Dealer_ModelAvailable(model))
 		{
 			return SendClientMessage(playerid, COLOR_ERROR, "Vehicle not found.");
 		}
 
-		new basePrice = DealershipCars[enumid][dealercar_price];
+		new basePrice = Dealer_GetPriceAt(enumid);
 		new discountPercent = Dealer_GetDiscountPercent(playerid);
 		new finalPrice = basePrice;
 
 		if (discountPercent > 0)
 		{
-			finalPrice = basePrice - (basePrice * discountPercent / 100);
+			finalPrice = basePrice - (Runtime_MoneyPercent(basePrice,discountPercent));
 		}
 
 		new bool: owned = Dealership_IsOwned ( dealerid ) ;
@@ -1016,7 +905,7 @@ mBrowser:dealer_list(playerid, response, row, model, name[]) {
         //AddPlayerRespect(playerid, 15);
         //GiveFnRPoints(playerid, 20, "Purchased vehicle", false);
 
-		Vehicle_CreateEntity ( playerid, model, E_VEHICLE_TYPE_PLAYER, Character [ playerid ] [ E_CHARACTER_ID ],  Dealerships[dealerid][dealership_spawn_x], Dealerships[dealerid][dealership_spawn_y], Dealerships[dealerid][dealership_spawn_z], Dealerships[dealerid][dealership_spawn_a], 0, 0, random (255), random (255), false, E_VEHICLE_JOB_NONE ) ;
+		Vehicle_CreateEntity ( playerid, model, E_VEHICLE_TYPE_PLAYER, Character [ playerid ] [ E_CHARACTER_ID ],  Dealerships[dealerid][dealership_spawn_x], Dealerships[dealerid][dealership_spawn_y], Dealerships[dealerid][dealership_spawn_z], Dealerships[dealerid][dealership_spawn_a], Dealerships[dealerid][dealership_spawn_world], Dealerships[dealerid][dealership_spawn_interior], random (255), random (255), false, E_VEHICLE_JOB_NONE ) ;
 
 		if (discountPercent > 0)
 		{
@@ -1053,4 +942,20 @@ mBrowser:dealer_list(playerid, response, row, model, name[]) {
 	}
 
 	return true ;
+}
+// Invalidate only the model browsers associated with a moved/renamed dealership.
+Dealer_ClosePlacementMenus(sqlid) {
+    foreach(new player:Player) {
+        if(DealerMenuId[player]==sqlid) {ModelBrowser_HideTiles(player);Dialog_Hide(player);}
+    }
+    return 1;
+}
+
+// Bump only this dealership's placement generation, then close its open menus.
+Dealer_PlacementChanged(dealerid) {DealerGeneration[dealerid]++;return Dealer_ClosePlacementMenus(Dealerships[dealerid][dealership_sqlid]);}
+#include <YSI_Coding\y_hooks>
+// A reused player slot must not inherit a previous player's purchase context.
+hook OnPlayerConnect(playerid) {
+    DealerMenuId[playerid]=0;DealerMenuGeneration[playerid]=-1;DealerMenuDiscount[playerid]=0;
+    return 1;
 }

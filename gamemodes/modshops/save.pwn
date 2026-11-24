@@ -6,7 +6,7 @@
 // ============================================================================
 
 #if !defined MODSHOP_FEE
-    #define MODSHOP_FEE ( 25 )
+    #define MODSHOP_FEE (Runtime_Int(RT_REPAIRS_MODSHOP_FEE)) // Cached database setting; edit through ACP.
 #endif
 
 enum E_COMPONENT_DATA {

@@ -24,6 +24,12 @@ static bool:CustomSkins_Register(base, model, characterid, factionid, const dff[
     return true;
 }
 
+// Uniform reloads may reference only already registered faction-owned models.
+stock bool:CustomSkins_FactionModelLoaded(model,factionid) {
+    for(new i; i<CustomSkinCount; i++) if(CustomSkinModels[i][E_ORP_SKIN_MODEL]==model && CustomSkinModels[i][E_ORP_SKIN_FACTION]==factionid && !CustomSkinModels[i][E_ORP_SKIN_CHARACTER]) return true;
+    return false;
+}
+
 // Returns the stock base for a loaded model the character is allowed to wear, or -1.
 CustomSkins_AllowedBase(playerid, model) {
     for (new i; i < CustomSkinCount; i++) {

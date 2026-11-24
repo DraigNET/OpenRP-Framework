@@ -233,15 +233,16 @@ Injury_OnPlayerDeath(playerid)
 	// below moves them. Training deaths (above) intentionally leave no corpse.
 	Corpse_Spawn(playerid);
 
-	SetPlayerCameraPos(playerid, 1264.9146, 366.0338, 42.6425);
-	SetPlayerCameraLookAt(playerid, 1264.5085, 365.1031, 42.2775);
-
-	PauseAC(playerid, 3);
-	SetPlayerPos(playerid, 1244.3533, 332.2185, 19.5547) ;
-	SetPlayerFacingAngle(playerid, 334.9928);
-
-	SetPlayerVirtualWorld(playerid, 0);
-	SetPlayerInterior(playerid, 0);
+    // A disabled hospital leaves the player at their existing valid position.
+    // Configure a recovery point in the ACP before opening the server to players.
+    if (RuntimeLocations[RT_LOC_HOSPITAL][RLOC_ENABLED]) {
+        PauseAC(playerid,3);
+        SetPlayerInterior(playerid,RuntimeLocations[RT_LOC_HOSPITAL][RLOC_INTERIOR]);
+        SetPlayerVirtualWorld(playerid,RuntimeLocations[RT_LOC_HOSPITAL][RLOC_WORLD]);
+        SetPlayerPos(playerid,RuntimeLocations[RT_LOC_HOSPITAL][RLOC_X],RuntimeLocations[RT_LOC_HOSPITAL][RLOC_Y],RuntimeLocations[RT_LOC_HOSPITAL][RLOC_Z]);
+        SetPlayerFacingAngle(playerid,RuntimeLocations[RT_LOC_HOSPITAL][RLOC_ANGLE]);
+    }
+    SetCameraBehindPlayer(playerid);
 
 	TogglePlayerControllable(playerid, false);
 	SetCharacterHealth(playerid, 75.0);
@@ -274,24 +275,14 @@ Injury_OnPlayerDeath(playerid)
 		if (!PlayerVar[playerid][E_PLAYER_LAST_HOSPITAL_BILL_AT] || gettime() - PlayerVar[playerid][E_PLAYER_LAST_HOSPITAL_BILL_AT] > 1800)
 		{
 			new worth = Character[playerid][E_CHARACTER_BANKCASH] + Character[playerid][E_CHARACTER_CASH];
-			new cost = 250;
+            // Use floating-point multiplication to avoid truncating low balances.
+            new cost=clamp(floatround(float(worth)*Runtime_Float(RT_MEDICAL_BILL_PERCENT)/100.0),Runtime_Int(RT_MEDICAL_BILL_MIN),Runtime_Int(RT_MEDICAL_BILL_MAX));
 
-			if (worth > 250)
-			{
-				// Hospital bill is 1% of a player's net worth, min 250, max 2.5k.
-				cost = (worth / 100) * 1;
-				if (cost < 250) cost = 250;
-				else if (cost > 2500) cost = 2500;
-
-				// + A small random amount
-				cost += (random(100) + 1);
-			}
-			
 			if (IsPlayerInAnyGovFaction(playerid))
 			{
 				SendClientMessage(playerid, 0xA3A3A3FF, sprintf("Your hospital bill of $%s was paid by your government health insurance.", IntegerWithDelimiter(cost)));
 			}
-			else if (worth < 250)
+			else if (worth < Runtime_Int(RT_MEDICAL_BILL_MIN))
 			{
 				SendClientMessage(playerid, 0xA3A3A3FF, sprintf("Your hospital bill of $%s was paid by the government as you couldn't afford it.", IntegerWithDelimiter(cost)));
 			}

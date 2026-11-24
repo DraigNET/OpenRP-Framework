@@ -1,0 +1,32 @@
+{
+  "name": "openrp-framework-editor",
+  "productName": "OpenRP Framework Editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.mjs",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "build": "npm run setup && npm run check && npm test && npm run package:win",
+    "check": "node scripts/check-source.mjs && prettier --check src ui scripts test docs README.md package.json",
+    "format": "prettier --write src ui scripts test docs README.md package.json",
+    "start": "electron .",
+    "test": "node --test test/*.test.mjs",
+    "admin:create": "node scripts/create-admin.mjs",
+    "package:win": "node scripts/package.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "3.0.3",
+    "mariadb": "3.5.5",
+    "node-pty": "1.1.0",
+    "nodemailer": "10.6.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "45.3.4",
+    "prettier": "3.10.1"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

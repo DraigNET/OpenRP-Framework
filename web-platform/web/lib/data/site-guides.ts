@@ -19,17 +19,13 @@ export const siteGuides = {
     ]
   },
   "firms": {
-    "title": "Firms",
-    "intro": "Organise your business and work with other players.",
+    "title": "Player-run firms",
+    "intro": "Register a company, employ other characters and build a working business in game.",
     "sections": [
-      {
-        "title": "Starting a firm",
-        "body": "Use the in-game firm commands to manage membership and business activity. Available fields and registration locations depend on how this server is configured."
-      },
-      {
-        "title": "Work with your crew",
-        "body": "Your firm has its own members, roles and permissions. Ask server staff about the fields and activities available before registering."
-      }
+      {"title":"Register at the administration desk","body":"Earn the registration fee in cash, then visit the configured Administration Building front desk. Use /firmlicense [mechanic/security/lawyer/transit/logistics/media] for a free professional business registration. Used-car and real-estate firms do not need a licence. Register with /firmcreate [field] [abbrev] [name], for example /firmcreate transit CAB Harbor Cab Company. You become the owner after the database accepts the registration."},
+      {"title":"Hire and fund your company","body":"Use /firmhelp, /firmmembers and /firminvite [player]. The recipient accepts the invite. /firmrank controls employee roles and /firmduty enables field work. New firms default to 10 members including the owner and 15 vehicles; server configuration can change these defaults. Use /firmbank deposit [amount] to contribute cash; only authorised roles can withdraw."},
+      {"title":"Get vehicles and start work","body":"Buy a personal vehicle normally, sit in the driver's seat and use /firmcar assign to transfer it to the company. No free vehicle or reimbursement is created. Mechanics use /mechanic, transit drivers use /fare and the meter, lawyers use /inmates and /defend, media firms use /broadcast, used-car businesses use /usedpool and /usedcar, and real-estate firms use /propertylist and /firmpropertybuy. Logistics uses the normal crate delivery job; it has no separate commodity PDA."},
+      {"title":"Manage assets before closing","body":"Use /firmcar release as the owner to return an ordinary firm vehicle to your personal ownership; a personal vehicle slot is required. Withdraw all company funds and release ordinary vehicles before /firmclose. Used-car stock returns to the scrapyard pool and real-estate stock returns to the server under their existing closure rules. A security business registration does not issue police guard or firearms permits."}
     ]
   },
   "dealerships": {

@@ -133,16 +133,17 @@ static Dealer_AdminCreate(playerid, const rest[]) {
 
 	GetPlayerPos ( playerid, x, y, z ) ;
 	GetPlayerFacingAngle ( playerid, a ) ;
+    new interior=GetPlayerInterior(playerid), world=GetPlayerVirtualWorld(playerid);
 
 	// Reserve the slot until the insert comes back.
 	Dealership_ClearEntity ( dealerid ) ;
 	Dealerships [ dealerid ] [ dealership_sqlid ] = -1 ;
 
-	new query [ 640 ], color = Dealer_GetTypeColor ( type ) ;
+	new query [ 1024 ], color = Dealer_GetTypeColor ( type ) ;
 
 	mysql_format ( mysql, query, sizeof ( query ),
-		"INSERT INTO dealerships (dealer_type, dealer_name, dealer_color, dealer_pos_x, dealer_pos_y, dealer_pos_z, dealer_spawn_x, dealer_spawn_y, dealer_spawn_z, dealer_spawn_a) VALUES (%d, '%e', %d, '%f', '%f', '%f', '%f', '%f', '%f', '%f')",
-		type, name, color, x, y, z, x, y, z, a ) ;
+		"INSERT INTO dealerships (dealer_type, dealer_name, dealer_color, dealer_pos_x, dealer_pos_y, dealer_pos_z, dealer_spawn_x, dealer_spawn_y, dealer_spawn_z, dealer_spawn_a, dealer_interior, dealer_world, dealer_spawn_interior, dealer_spawn_world) VALUES (%d, '%e', %d, '%f', '%f', '%f', '%f', '%f', '%f', '%f', %d, %d, %d, %d)",
+		type, name, color, x, y, z, x, y, z, a, interior, world, interior, world ) ;
 
 	inline Dealer_OnCreate() {
 
@@ -167,6 +168,10 @@ static Dealer_AdminCreate(playerid, const rest[]) {
 		Dealerships [ dealerid ] [ dealership_spawn_z ] = z ;
 		Dealerships [ dealerid ] [ dealership_spawn_a ] = a ;
 
+		Dealerships[dealerid][dealership_interior]=interior;
+		Dealerships[dealerid][dealership_world]=world;
+		Dealerships[dealerid][dealership_spawn_interior]=interior;
+		Dealerships[dealerid][dealership_spawn_world]=world;
 		Dealership_CreateVisuals ( dealerid ) ;
 
 		SendServerMessage ( playerid, COLOR_BLUE, "Dealership", "A3A3A3", sprintf ( "Created dealership %d (%s). Bought cars appear at your position until you use /dealeradmin setspawn %d.", sqlid, name, sqlid ) ) ;
@@ -212,16 +217,18 @@ static Dealer_AdminDelete(playerid, dealerid) {
 // Sets a dealership's entrance position.
 static Dealer_AdminSetPos(playerid, dealerid) {
 
-	new Float: x, Float: y, Float: z, query [ 256 ] ;
+	new Float: x, Float: y, Float: z, query [ 512 ] ;
 
 	GetPlayerPos ( playerid, x, y, z ) ;
 
 	Dealerships [ dealerid ] [ dealership_pos_x ] = x ;
 	Dealerships [ dealerid ] [ dealership_pos_y ] = y ;
 	Dealerships [ dealerid ] [ dealership_pos_z ] = z ;
+	Dealerships[dealerid][dealership_interior]=GetPlayerInterior(playerid);
+	Dealerships[dealerid][dealership_world]=GetPlayerVirtualWorld(playerid);
 
-	mysql_format ( mysql, query, sizeof ( query ), "UPDATE dealerships SET dealer_pos_x = '%f', dealer_pos_y = '%f', dealer_pos_z = '%f' WHERE dealer_id = %d",
-		x, y, z, Dealerships [ dealerid ] [ dealership_sqlid ] ) ;
+	mysql_format ( mysql, query, sizeof ( query ), "UPDATE dealerships SET dealer_interior=%d, dealer_world=%d, dealer_pos_x = '%f', dealer_pos_y = '%f', dealer_pos_z = '%f' WHERE dealer_id = %d",
+		GetPlayerInterior(playerid),GetPlayerVirtualWorld(playerid),x, y, z, Dealerships [ dealerid ] [ dealership_sqlid ] ) ;
 	mysql_tquery ( mysql, query ) ;
 
 	Dealership_DestroyVisuals ( dealerid ) ;
@@ -235,7 +242,7 @@ static Dealer_AdminSetPos(playerid, dealerid) {
 // Sets the position where bought vehicles spawn.
 static Dealer_AdminSetSpawn(playerid, dealerid) {
 
-	new Float: x, Float: y, Float: z, Float: a, query [ 256 ] ;
+	new Float: x, Float: y, Float: z, Float: a, query [ 512 ] ;
 
 	if ( IsPlayerInAnyVehicle ( playerid ) ) {
 
@@ -255,10 +262,13 @@ static Dealer_AdminSetSpawn(playerid, dealerid) {
 	Dealerships [ dealerid ] [ dealership_spawn_y ] = y ;
 	Dealerships [ dealerid ] [ dealership_spawn_z ] = z ;
 	Dealerships [ dealerid ] [ dealership_spawn_a ] = a ;
+	Dealerships[dealerid][dealership_spawn_interior]=GetPlayerInterior(playerid);
+	Dealerships[dealerid][dealership_spawn_world]=GetPlayerVirtualWorld(playerid);
 
-	mysql_format ( mysql, query, sizeof ( query ), "UPDATE dealerships SET dealer_spawn_x = '%f', dealer_spawn_y = '%f', dealer_spawn_z = '%f', dealer_spawn_a = '%f' WHERE dealer_id = %d",
-		x, y, z, a, Dealerships [ dealerid ] [ dealership_sqlid ] ) ;
+	mysql_format ( mysql, query, sizeof ( query ), "UPDATE dealerships SET dealer_spawn_interior=%d, dealer_spawn_world=%d, dealer_spawn_x = '%f', dealer_spawn_y = '%f', dealer_spawn_z = '%f', dealer_spawn_a = '%f' WHERE dealer_id = %d",
+		GetPlayerInterior(playerid),GetPlayerVirtualWorld(playerid),x, y, z, a, Dealerships [ dealerid ] [ dealership_sqlid ] ) ;
 	mysql_tquery ( mysql, query ) ;
+    Dealer_PlacementChanged(dealerid);
 
 	AddLogEntry ( playerid, LOG_TYPE_ADMIN, sprintf ( "Set the spawn of dealership %d (%s)", Dealerships [ dealerid ] [ dealership_sqlid ], Dealerships [ dealerid ] [ dealership_name ] ) ) ;
 
@@ -336,7 +346,7 @@ static Dealer_AdminStockEditor(playerid, dealerid) {
 		}
 
 		format ( string, sizeof ( string ), "%s{FFFFFF}%s\t%d\t$%s\n", string, ReturnVehicleModelName ( DealershipCars [ i ] [ dealercar_carmodel ] ),
-			DealerStock [ dealerid ] [ i ], IntegerWithDelimiter ( DealershipCars [ i ] [ dealercar_price ] ) ) ;
+			DealerStock [ dealerid ] [ i ], IntegerWithDelimiter ( Dealer_GetPriceAt(i) ) ) ;
 	}
 
 	format ( title, sizeof ( title ), "Stock: %s%s", Dealerships [ dealerid ] [ dealership_name ], Dealership_IsOwned ( dealerid ) ? ("") : (" (vacant, unlimited)") ) ;
@@ -500,7 +510,7 @@ static Dealer_AdminAppAction(playerid, dealerid, sqlid, index) {
 // Shows the applications for a dealership.
 Dealer_AdminShowApps(playerid, dealerid) {
 
-	new query [ 256 ], sqlid = Dealerships [ dealerid ] [ dealership_sqlid ] ;
+	new query [ 512 ], sqlid = Dealerships [ dealerid ] [ dealership_sqlid ] ;
 
 	mysql_format ( mysql, query, sizeof ( query ),
 		"SELECT character_id, character_name, app_message, app_created_at FROM dealership_applications WHERE dealer_id = %d ORDER BY app_created_at ASC LIMIT %d",
@@ -556,6 +566,7 @@ Dealer_AdminShowApps(playerid, dealerid) {
 
 // /dealeradmin - (admin) manages dealerships.
 CMD:dealeradmin(playerid, params[]) {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is applying. Try again shortly.");
 
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_LEAD ) {
 

@@ -29,25 +29,29 @@
 // ============================================================================
 
 // Depot. TODO: set coordinates for your map (the crate pile and /loadtruck point).
-#define TRUCKER_DEPOT_X         (0.0) // TODO: set coordinates for your map
-#define TRUCKER_DEPOT_Y         (0.0) // TODO: set coordinates for your map
-#define TRUCKER_DEPOT_Z         (0.0) // TODO: set coordinates for your map
+#define TRUCKER_DEPOT_X (RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_X]) // Cached database setting; edit through ACP.
+#define TRUCKER_DEPOT_Y (RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_Y]) // Cached database setting; edit through ACP.
+#define TRUCKER_DEPOT_Z (RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_Z]) // Cached database setting; edit through ACP.
 #define TRUCKER_DEPOT_NAME      "Delivery Depot"
 
 #define TRUCKER_CRATE_MODEL     (1271)      // stock crate; swap for a custom model if you add one
-#define TRUCKER_LOAD_RANGE      (15.0)      // how close the vehicle must be to the depot to take an order
-#define TRUCKER_PILE_RANGE      (4.0)       // how close you must be to the depot crate pile
-#define TRUCKER_REAR_RANGE      (3.0)       // how close you must be to the rear of the vehicle
-#define TRUCKER_DROP_RANGE      (6.0)       // how close you must be to the drop-off point
-#define TRUCKER_UNLOAD_RANGE    (30.0)      // how close the vehicle must be to the business to unload
-#define TRUCKER_MIN_DISTANCE    (300.0)     // don't send people to a business right next door
-#define TRUCKER_PAY_PER_CRATE   (40)
-#define TRUCKER_PAY_PER_YARD    (0.03)      // extra per crate, per yard between the depot and the business
-#define TRUCKER_CHECKPOINT_SIZE (6.0)
+#define TRUCKER_LOAD_RANGE (Runtime_Float(RT_TRUCKER_LOAD_RANGE)) // Cached database setting; edit through ACP.
+#define TRUCKER_PILE_RANGE (Runtime_Float(RT_TRUCKER_PILE_RANGE)) // Cached database setting; edit through ACP.
+#define TRUCKER_REAR_RANGE (Runtime_Float(RT_TRUCKER_REAR_RANGE)) // Cached database setting; edit through ACP.
+#define TRUCKER_DROP_RANGE (Runtime_Float(RT_TRUCKER_DROP_RANGE)) // Cached database setting; edit through ACP.
+#define TRUCKER_UNLOAD_RANGE (Runtime_Float(RT_TRUCKER_UNLOAD_RANGE)) // Cached database setting; edit through ACP.
+#define TRUCKER_MIN_DISTANCE (Runtime_Float(RT_TRUCKER_MINIMUM_DISTANCE)) // Cached database setting; edit through ACP.
+#define TRUCKER_PAY_PER_CRATE (Runtime_Int(RT_TRUCKER_CRATE_PAY)) // Cached database setting; edit through ACP.
+#define TRUCKER_PAY_PER_YARD (Runtime_Float(RT_TRUCKER_DISTANCE_PAY)) // Cached database setting; edit through ACP.
+#define TRUCKER_CHECKPOINT_SIZE (Runtime_Float(RT_TRUCKER_CHECKPOINT_SIZE)) // Cached database setting; edit through ACP.
 
 #define TRUCKER_NO_ORDER        (-1)
 
 static bool:   TruckerHeldFromVehicle[MAX_PLAYERS];     // the crate in your hands came out of a vehicle
+static TruckerOrderCapacity[sizeof Vehicle], TruckerOrderPay[sizeof Vehicle];
+static TruckerHeldPay[MAX_PLAYERS], TruckerHeldProperty[MAX_PLAYERS];
+static DynamicText3D:TruckerDepotLabel;
+static TruckerDepotObjects[3];
 static TruckerEarned[MAX_PLAYERS];                       // paid so far on the current unload
 
 // ---------------------------------------------------------------------------
@@ -55,25 +59,16 @@ static TruckerEarned[MAX_PLAYERS];                       // paid so far on the c
 // ---------------------------------------------------------------------------
 Trucker_GetVehicleCapacity(modelid) {
 
-	switch ( modelid ) {
-
-		case 413: return 8 ;    // Pony
-		case 414: return 12 ;   // Mule
-		case 456: return 16 ;   // Yankee
-		case 499: return 14 ;   // Benson
-		case 498, 609: return 10 ;  // Boxville
-		case 440: return 8 ;    // Rumpo
-		case 482: return 6 ;    // Burrito
-		case 435, 450, 584, 591: return 30 ;    // Trailers
-	}
-
-	return 0 ;
+    if (modelid<400 || modelid>611 || !RuntimeModelEnabled[modelid-400]) return 0;
+    return RuntimeCargoSlots[modelid-400];
 }
 
 // Returns true if the vehicle can carry cargo (is one of the delivery vehicles or trailers).
 bool: IsCargoVehicle(vehicleid) {
 
-	return ( Trucker_GetVehicleCapacity ( GetVehicleModel(vehicleid) ) > 0 ) ;
+	new index=Trucker_GetEnumID(vehicleid);
+    if(index!=-1 && TruckerOrderCapacity[index]>0) return true;
+    return ( Trucker_GetVehicleCapacity ( GetVehicleModel(vehicleid) ) > 0 ) ;
 }
 
 // Kept because the rest of the gamemode asks about it.
@@ -111,6 +106,7 @@ Vehicle_ClearTruckerVariables(veh_enum_id) {
 		return true ;
 	}
 
+    TruckerOrderCapacity[veh_enum_id]=0; TruckerOrderPay[veh_enum_id]=0;
 	for ( new i ; i < 64 ; i ++ ) {
 
 		VehicleVar [ veh_enum_id ] [ E_VEHICLE_TRUCKER_ITEM ] [ i ]   = -1 ;
@@ -130,13 +126,16 @@ static Trucker_GetEnumID(vehicleid) {
 // Returns the vehicle's usable cargo slot count (max 64).
 static Trucker_GetCapacity(vehicleid) {
 
-	return min ( Trucker_GetVehicleCapacity ( GetVehicleModel(vehicleid) ), 64 ) ;
+	new index=Trucker_GetEnumID(vehicleid);
+    if(index!=-1 && TruckerOrderCapacity[index]>0) return TruckerOrderCapacity[index];
+    return min ( Trucker_GetVehicleCapacity ( GetVehicleModel(vehicleid) ), 64 ) ;
 }
 
 // Counts how many crates are in a vehicle's cargo slots.
 static Trucker_CountCrates(veh_enum_id, vehicleid) {
 
-	new used, cap = Trucker_GetCapacity(vehicleid) ;
+	new used, cap = 64;
+    #pragma unused vehicleid
 
 	for ( new i ; i < cap ; i ++ ) {
 
@@ -169,7 +168,8 @@ static bool: Trucker_AddCrate(veh_enum_id, vehicleid, product) {
 // Takes the last crate out and returns its product, or -1 if the vehicle is empty.
 static Trucker_RemoveCrate(veh_enum_id, vehicleid) {
 
-	for ( new i = Trucker_GetCapacity(vehicleid) - 1 ; i >= 0 ; i -- ) {
+	    #pragma unused vehicleid
+	for ( new i = 63 ; i >= 0 ; i -- ) {
 
 		new product = VehicleVar [ veh_enum_id ] [ E_VEHICLE_TRUCKER_ITEM ] [ i ] ;
 
@@ -330,16 +330,24 @@ static Trucker_GetRearVehicle(playerid) {
 // Start-up: creates the depot label and the pile of crates.
 Trucker_LoadEntities() {
 
-	CreateDynamic3DTextLabel(TRUCKER_DEPOT_NAME "\n{DEDEDE}Take an order with /loadtruck in a delivery vehicle,\nthen press Y here to pick up crates.", 0xC6944CFF, TRUCKER_DEPOT_X, TRUCKER_DEPOT_Y, TRUCKER_DEPOT_Z + 1.0, 20.0, .testlos = false) ;
-
-	// A small pile of crates marks the pickup point.
-	CreateDynamicObject(TRUCKER_CRATE_MODEL, TRUCKER_DEPOT_X, TRUCKER_DEPOT_Y, TRUCKER_DEPOT_Z - 0.4, 0.0, 0.0, 0.0) ;
-	CreateDynamicObject(TRUCKER_CRATE_MODEL, TRUCKER_DEPOT_X + 1.2, TRUCKER_DEPOT_Y, TRUCKER_DEPOT_Z - 0.4, 0.0, 0.0, 20.0) ;
-	CreateDynamicObject(TRUCKER_CRATE_MODEL, TRUCKER_DEPOT_X + 0.6, TRUCKER_DEPOT_Y, TRUCKER_DEPOT_Z + 0.4, 0.0, 0.0, 10.0) ;
-
-	printf(" * [TRUCKER] Delivery job loaded (depot: %s).", TRUCKER_DEPOT_NAME) ;
-
-	return true ;
+    new DynamicText3D:label, objects[3];
+    if(RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_ENABLED]) {
+        label=CreateDynamic3DTextLabel(sprintf("%s\n{DEDEDE}/loadtruck to accept an order; Y to pick up crates.",RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_LABEL]),0xC6944CFF,TRUCKER_DEPOT_X,TRUCKER_DEPOT_Y,TRUCKER_DEPOT_Z+1.0,20.0,
+            INVALID_PLAYER_ID,INVALID_VEHICLE_ID,false,RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_WORLD],RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_INTERIOR]);
+        for(new i; i<3; i++) objects[i]=CreateDynamicObject(TRUCKER_CRATE_MODEL,TRUCKER_DEPOT_X+float(i)*0.6,TRUCKER_DEPOT_Y,TRUCKER_DEPOT_Z-0.4,0.0,0.0,float(i)*10.0,
+            RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_WORLD],RuntimeLocations[RT_LOC_TRUCKER_DEPOT][RLOC_INTERIOR]);
+        new bool:valid=IsValidDynamic3DTextLabel(label);
+        for(new i; i<3; i++) if(!IsValidDynamicObject(objects[i])) valid=false;
+        if(!valid) {
+            if(IsValidDynamic3DTextLabel(label)) DestroyDynamic3DTextLabel(label);
+            for(new i; i<3; i++) if(IsValidDynamicObject(objects[i])) DestroyDynamicObject(objects[i]);
+            return 0;
+        }
+    }
+    if(IsValidDynamic3DTextLabel(TruckerDepotLabel)) DestroyDynamic3DTextLabel(TruckerDepotLabel);
+    for(new i; i<3; i++) { if(IsValidDynamicObject(TruckerDepotObjects[i])) DestroyDynamicObject(TruckerDepotObjects[i]); TruckerDepotObjects[i]=objects[i]; }
+    TruckerDepotLabel=label;
+    return 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -382,7 +390,7 @@ CMD:loadtruck(playerid, params[]) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Trucker", "A3A3A3", "This vehicle already has an order or cargo. Deliver it, or use /canceldelivery." ) ;
 	}
 
-	if ( GetVehicleDistanceFromPoint(vehicleid, TRUCKER_DEPOT_X, TRUCKER_DEPOT_Y, TRUCKER_DEPOT_Z) > TRUCKER_LOAD_RANGE ) {
+	if (!Runtime_AtLocation(playerid,RT_LOC_TRUCKER_DEPOT,TRUCKER_LOAD_RANGE)) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Trucker", "A3A3A3", "You must be at the " TRUCKER_DEPOT_NAME " to take an order." ) ;
 	}
@@ -398,6 +406,9 @@ CMD:loadtruck(playerid, params[]) {
 	Trucker_GetProduct ( Property [ prop ] [ E_PROPERTY_BUY_TYPE ], product ) ;
 
 	Trucker_SetOrder(veh_enum_id, Property [ prop ] [ E_PROPERTY_ID ]) ;
+    // Quote capacity and per-crate pay once. Later edits apply to new orders.
+    TruckerOrderCapacity[veh_enum_id]=Trucker_GetVehicleCapacity(GetVehicleModel(vehicleid));
+    TruckerOrderPay[veh_enum_id]=TRUCKER_PAY_PER_CRATE+floatround(Trucker_DepotDistance(prop)*TRUCKER_PAY_PER_YARD);
 	Trucker_SetCheckpoint(playerid, prop) ;
 
 	SendServerMessage ( playerid, COLOR_JOB, "Trucker", "DEDEDE",
@@ -454,7 +465,7 @@ hook OnPlayerKeyStateChange(playerid, newkeys, oldkeys) {
 	new bool: carrying = Trucker_IsCarrying(playerid) ;
 	new rear_vehicle = Trucker_GetRearVehicle(playerid) ;
 	new rear_enum = ( rear_vehicle != INVALID_VEHICLE_ID ) ? Trucker_GetEnumID(rear_vehicle) : -1 ;
-	new bool: at_pile = IsPlayerInRangeOfPoint(playerid, TRUCKER_PILE_RANGE, TRUCKER_DEPOT_X, TRUCKER_DEPOT_Y, TRUCKER_DEPOT_Z) ;
+	new bool: at_pile = Runtime_AtLocation(playerid,RT_LOC_TRUCKER_DEPOT,TRUCKER_PILE_RANGE) ;
 
 	// ---- Not carrying anything ------------------------------------------------
 	if ( ! carrying ) {
@@ -507,6 +518,8 @@ hook OnPlayerKeyStateChange(playerid, newkeys, oldkeys) {
 
 		Trucker_SetCheckpoint(playerid, prop) ;
 		Trucker_PickUpCrate(playerid, product, true) ;
+        TruckerHeldPay[playerid]=TruckerOrderPay[rear_enum];
+        TruckerHeldProperty[playerid]=order;
 		ShowPlayerFooter(playerid, "Carry the crate to the checkpoint and press Y.", 3000) ;
 
 		return 1 ;
@@ -534,24 +547,12 @@ hook OnPlayerKeyStateChange(playerid, newkeys, oldkeys) {
 
 		new vehicleid = Vehicle_GetClosestEntity(playerid, 40.0) ;
 		new veh_enum_id = ( vehicleid != INVALID_VEHICLE_ID ) ? Trucker_GetEnumID(vehicleid) : -1 ;
-		new prop = ( veh_enum_id != -1 ) ? Trucker_FindProperty(Trucker_GetOrder(veh_enum_id)) : -1 ;
-
-		// The delivery vehicle should be right next to us; if it isn't we fall back to the nearest business we're standing at.
-		if ( prop == -1 ) {
-
-			foreach (new i : Properties) {
-
-				if ( Property [ i ] [ E_PROPERTY_TYPE ] == E_PROPERTY_TYPE_BIZ && IsPlayerInRangeOfPoint(playerid, TRUCKER_DROP_RANGE, Property [ i ] [ E_PROPERTY_EXT_X ], Property [ i ] [ E_PROPERTY_EXT_Y ], Property [ i ] [ E_PROPERTY_EXT_Z ]) ) {
-
-					prop = i ;
-					break ;
-				}
-			}
-		}
+        // A held crate remains bound to the accepted destination and quoted payout.
+        new prop=Trucker_FindProperty(TruckerHeldProperty[playerid]);
 
 		if ( prop != -1 && IsPlayerInRangeOfPoint(playerid, TRUCKER_DROP_RANGE, Property [ prop ] [ E_PROPERTY_EXT_X ], Property [ prop ] [ E_PROPERTY_EXT_Y ], Property [ prop ] [ E_PROPERTY_EXT_Z ]) ) {
 
-			new pay = TRUCKER_PAY_PER_CRATE + floatround ( Trucker_DepotDistance(prop) * TRUCKER_PAY_PER_YARD ) ;
+			new pay = TruckerHeldPay[playerid];
 
 			Trucker_PutDownCrate(playerid) ;
 			GivePlayerCash(playerid, pay, "Trucker delivery payout") ;
@@ -561,7 +562,7 @@ hook OnPlayerKeyStateChange(playerid, newkeys, oldkeys) {
 			AddLogEntry(playerid, LOG_TYPE_JOB, sprintf ( "delivered a trucker crate for $%d", pay )) ;
 
 			// Last crate out? Close the order.
-			if ( veh_enum_id != -1 && Trucker_CountCrates(veh_enum_id, vehicleid) == 0 ) {
+			if ( veh_enum_id != -1 && Trucker_GetOrder(veh_enum_id)==TruckerHeldProperty[playerid] && Trucker_CountCrates(veh_enum_id, vehicleid) == 0 ) {
 
 				Vehicle_ClearTruckerVariables(veh_enum_id) ;
 				DisablePlayerCheckpoint(playerid) ;
@@ -646,4 +647,11 @@ hook OnPlayerConnect(playerid) {
 	TruckerEarned [ playerid ] = 0 ;
 
 	return 1 ;
+}
+// A destination move waits for accepted vehicle orders and already unloaded crates.
+// Otherwise an existing checkpoint could point to a different delivery location.
+Trucker_PropertyInUse(propertySqlId) {
+    for(new index;index<sizeof Vehicle;index++) if(IsValidVehicle(Vehicle[index][E_VEHICLE_ID]) && Trucker_GetOrder(index)==propertySqlId) return 1;
+    foreach(new player:Player) if(TruckerHeldFromVehicle[player] && TruckerHeldProperty[player]==propertySqlId) return 1;
+    return 0;
 }

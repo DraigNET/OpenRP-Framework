@@ -5,7 +5,7 @@
 // ============================================================================
 
 #if !defined FUEL_STATION_COST
-	#define FUEL_STATION_COST	250000
+	#define FUEL_STATION_COST (Runtime_Int(RT_FUEL_STATION_PURCHASE_FEE)) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined INVALID_FUEL_MANAGER_ID
@@ -45,22 +45,16 @@ FuelStation_ViewOwnershipMenu(playerid, enum_id) {
 		return true ;
 	}
 
-	new query [ 256 ] ;
+	new query [ 256 ],owner_character=Character[playerid][E_CHARACTER_ID],station_sqlid=FuelStation[enum_id][E_FUEL_STATION_ID] ;
 
 	inline FuelStation_OwnerMenu(pid, dialogid, response, listitem, string:inputtext[]) {
 	    #pragma unused pid, response, dialogid, listitem, inputtext
+        if(!IsPlayerConnected(playerid) || !IsPlayerLogged(playerid) || Character[playerid][E_CHARACTER_ID]!=owner_character || FuelStation[enum_id][E_FUEL_STATION_ID]!=station_sqlid || FuelStation[enum_id][E_FUEL_STATION_OWNERID]!=owner_character)return 1;
 
 		if ( response ) {
 			switch ( listitem ) {
 
-				case 0: { // order fuel
-
-					SendClientMessage ( playerid, COLOR_ERROR, "This feature is coming in a future update.");
-					FuelStation_ViewOwnershipMenu(playerid, enum_id ) ;
-
-					return true ;
-				}
-				case 1: { // collect pump earnings
+				case 0: { // collect pump earnings
 
 					ShowPlayerInfoMessage(playerid, sprintf("You have collected ~g~$%s income~w~ from your fuel station.", IntegerWithDelimiter(FuelStation [ enum_id ] [ E_FUEL_STATION_INCOME ])), .height=167.5, .width=180, .showtime = 6000);
 					FuelStation_ViewOwnershipMenu(playerid, enum_id ) ;
@@ -72,9 +66,11 @@ FuelStation_ViewOwnershipMenu(playerid, enum_id) {
 
 					FuelStation [ enum_id ] [ E_FUEL_STATION_INCOME ] = 0 ;
 				}
-				case 2: { // sell fuel station
+				case 1: { // sell fuel station
+                    new sale_price=FUEL_STATION_COST;
 					inline FuelStation_SellConfirm(pidx, dialogidx, responsex, listitemx, string:inputtextx[]) {
 					    #pragma unused pidx, dialogidx, listitemx, inputtextx
+                        if(!IsPlayerConnected(playerid) || !IsPlayerLogged(playerid) || Character[playerid][E_CHARACTER_ID]!=owner_character || FuelStation[enum_id][E_FUEL_STATION_ID]!=station_sqlid || FuelStation[enum_id][E_FUEL_STATION_OWNERID]!=owner_character)return 1;
 
 						if ( ! responsex ) {
 
@@ -83,7 +79,7 @@ FuelStation_ViewOwnershipMenu(playerid, enum_id) {
 						}
 
 						if ( responsex ) {
-							GivePlayerCash(playerid, FUEL_STATION_COST, "Fuel station sell" ) ;
+							GivePlayerCash(playerid, sale_price, "Fuel station sell" ) ;
 
 							FuelStation [ enum_id ] [ E_FUEL_STATION_OWNERID ] = INVALID_PLAYER_ID ;
 
@@ -91,7 +87,7 @@ FuelStation_ViewOwnershipMenu(playerid, enum_id) {
 								FuelStation [ enum_id ] [ E_FUEL_STATION_OWNERID ], FuelStation [ enum_id ] [ E_FUEL_STATION_ID ] ) ;
 							mysql_tquery(mysql, query );
 					
-							ShowPlayerInfoMessage(playerid, sprintf("You have sold your fuel station for ~r~$%s.", IntegerWithDelimiter(FUEL_STATION_COST)), .height=167.5, .width=180, .showtime = 6000);
+							ShowPlayerInfoMessage(playerid, sprintf("You have sold your fuel station for ~r~$%s.", IntegerWithDelimiter(sale_price)), .height=167.5, .width=180, .showtime = 6000);
 
 							return true ;
 						}
@@ -102,11 +98,11 @@ FuelStation_ViewOwnershipMenu(playerid, enum_id) {
 					format ( confirmstring, sizeof ( confirmstring ), 
 
 						"{C23030}READ THIS BEFORE PRESSING CONTINUE.{DEDEDE}\n\n\
-						You're about to sell your fuel station and lose ownershipfor {C23030}$%s\n\n\
+						You're about to sell your fuel station and lose ownership for  {C23030}$%s\n\n\
 						{C23030}We will not assist you in getting it back once it has been sold.{DEDEDE}\n\n\
 						Only press continue if you're certain."
 
-					, IntegerWithDelimiter ( FUEL_STATION_COST )  ) ;
+					, IntegerWithDelimiter ( sale_price )  ) ;
 
 					Dialog_ShowCallback ( playerid, using inline FuelStation_SellConfirm, DIALOG_STYLE_MSGBOX, "{C23030}ANTI DUMBASS WARNING{DEDEDE}", confirmstring, "{C23030}Continue", "No way" );
 
@@ -117,7 +113,7 @@ FuelStation_ViewOwnershipMenu(playerid, enum_id) {
 
 	Dialog_ShowCallback ( playerid, using inline FuelStation_OwnerMenu, 
 		DIALOG_STYLE_LIST, "Fuel Station Management", 
-		"Replenish Pumps / Order Fuel\nCollect Pump Earnings\nSell Fuel Station", 
+		"Collect Pump Earnings\nSell Fuel Station", 
 		"Continue", "Back"
 	);
 

@@ -38,11 +38,12 @@
 #define FIRM_PERM_PROPERTIES        (128)   // real estate: buy, price, rent and manage the firm's properties
 #define FIRM_PERM_ALL               (255)
 
-#define FIRM_CREATE_BASE_FEE        (50000)
+#define FIRM_CREATE_BASE_FEE (Runtime_Int(RT_FIRMS_CREATION_FEE)) // Cached database setting; edit through ACP.
 #define USEDCARS_DEFAULT_SLOTS      (15)    // lot size a new used car firm starts with
 
 #include "firm/data.pwn"
 #include "firm/func.pwn"
+#include "firm/workflow.pwn"
 #include "firm/commands.pwn"
 #include "firm/jobs/transit.pwn"
 #include "firm/jobs/lawyer.pwn"

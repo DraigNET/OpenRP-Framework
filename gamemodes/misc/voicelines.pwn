@@ -1902,7 +1902,7 @@ Voicelines_List(playerid, choice ) {
 
 
 #define VOICELINE_LOCAL_COLOR	( 0xC4DDB9FF )
-#define VOICELINE_COOLDOWN_TIME 10
+#define VOICELINE_COOLDOWN_TIME (Runtime_Int(RT_VOICE_LINE_COOLDOWN_SECONDS)) // Cached database setting; edit through ACP.
 
 // Plays a voice line for nearby players with a cooldown and a roleplay message.
 PlayPlayerVoiceline(playerid, voiceid) {

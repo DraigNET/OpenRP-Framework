@@ -8,7 +8,7 @@ static lpcost = 500;
 
 CMD:buylockpick(playerid, params[]) {
 
-	if ( ! IsPlayerInRangeOfPoint(playerid, 5.0, CHOPSHOP_X, CHOPSHOP_Y, CHOPSHOP_Z ) ) {
+	if ( ! Runtime_AtLocation(playerid,RT_LOC_CHOPSHOP) ) {
 		return SendServerMessage ( playerid, COLOR_ERROR, "Error", "A3A3A3", "You're not near the chopshop!");
 	}
 

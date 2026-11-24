@@ -864,7 +864,7 @@ enum PlayerVars
         // Pizza delivery job
         E_PLAYER_PIZZAJOB,                  // bool: job active
         E_PLAYER_PIZZAJOB_VEHICLE,          // SA-MP vehicle id of the assigned pizza van
-        E_PLAYER_PIZZAJOB_HOUSES[5],        // property enum ids on the current route (PIZZA_DELIVERIES)
+        E_PLAYER_PIZZAJOB_HOUSES[20],        // property enum ids on the current route (PIZZA_DELIVERIES)
         E_PLAYER_PIZZAJOB_INDEX,            // current delivery (0..4)
         E_PLAYER_PIZZAJOB_DELIVERED,        // houses delivered so far
         E_PLAYER_PIZZAJOB_HOLDING,          // bool: currently holding a pizza box

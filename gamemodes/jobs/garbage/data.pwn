@@ -6,8 +6,16 @@
 
 new Float: garbageJobStartPosX[MAX_PLAYERS], Float: garbageJobStartPosY[MAX_PLAYERS], Float: garbageJobStartPosZ[MAX_PLAYERS];
 
+new GarbageAssignedObject[MAX_PLAYERS], GarbageAssignedModel[MAX_PLAYERS];
+
 #include <YSI_Coding\y_hooks>
+hook OnPlayerDisconnect(playerid, reason) {
+    GarbageJob_CancelData(playerid);
+    return 1;
+}
+
 hook OnPlayerConnect(playerid) {
+    GarbageAssignedObject[playerid]=0;
 	garbageJobStartPosX[playerid] = 0;
 	garbageJobStartPosY[playerid] = 0;
 	garbageJobStartPosZ[playerid] = 0;
@@ -39,40 +47,10 @@ enum E_GARBAGE_POINT_DATA {
 	Float: E_GARBAGE_POS_Z
 } ;
 
-new GarbagePoint [ ] [ E_GARBAGE_POINT_DATA ] = {
-	{255.6008,20.4950,2.4475},      // Garbage 1
-	{215.0402,-5.6737,2.5371},      // Garbage 2
-	{204.5641,-33.1239,1.5781},     // Garbage 3
-	{162.3470,-10.7469,1.5781},     // Garbage 4
-	{182.7723,-91.8026,1.5427},     // Garbage 5
-	{175.6007,-118.9284,1.5503},    // Garbage 6
-	{210.9835,-163.2349,1.5781},    // Garbage 7
-	{215.6126,-181.7471,1.5781},    // Garbage 8
-	{121.1602,-154.7676,1.5781},    // Garbage 9
-	{199.9074,-325.5791,1.7051},    // Garbage 10
-	{654.3475,-439.0498,16.3359},   // Garbage 11
-	{644.6218,-511.1986,16.3359},   // Garbage 12
-	{661.9570,-541.7520,16.3359},   // Garbage 13
-	{662.0895,-623.0569,16.3359},   // Garbage 14
-	{740.5894,-539.7310,16.3359},   // Garbage 15
-	{797.1172,-520.6215,16.3359},   // Garbage 16
-	{835.7222,-599.8776,16.3359},   // Garbage 17
-	{1276.0763,188.9603,19.6586},   // Garbage 18
-	{1299.7666,214.5239,19.5547},   // Garbage 19
-	{1244.8755,246.6298,19.5547},   // Garbage 20
-	{1293.5852,345.7444,19.5547},   // Garbage 21
-	{1383.8431,293.5231,19.5547},   // Garbage 22
-	{1392.2594,210.4175,19.4574},   // Garbage 23
-	{2214.2256,52.6979,26.4844},    // Garbage 24
-	{2236.6643,69.7013,26.4844},    // Garbage 25
-	{2283.2935,101.0556,26.4844},   // Garbage 26
-	{2323.7600,59.8555,26.4922},    // Garbage 27
-	{2361.8550,-37.9262,26.4844},   // Garbage 28
-	{2417.0471,51.0469,26.4844},    // Garbage 29
-	{2543.8750,27.6838,26.4844},    // Garbage 30
-	{2334.4702,-52.8211,26.4844},   // Garbage 31
-	{2275.9382,-69.1702,26.5751}    // Garbage 32
-}, garbage_object [ sizeof ( GarbagePoint )] ;
+// Menus use a compact cache, while an assigned collection keeps its own bag.
+// A location edit therefore affects future assignments without moving an active target.
+new GarbagePoint[256][E_GARBAGE_POINT_DATA], GarbagePointCount;
+new GarbageSource[256], garbage_object[256], DynamicText3D:GarbageLabels[256];
 
 // Attaches the garbage bag or box model to the player's hands.
 GarbageJob_SetAttachment(playerid, modelid) {
@@ -87,67 +65,53 @@ GarbageJob_SetAttachment(playerid, modelid) {
 	return true ;
 }
 
-// Creates the garbage pickup points and their bags.
+// Stage replacement handles first; active player-only bags are owned separately.
 GarbageJob_LoadEntities() {
-
-	new modelid, Float: fixed_z ;
-
-	for ( new i, j =sizeof ( GarbagePoint ); i < j ; i ++ ) {
-
-
-		switch ( random ( 4 ) ) {
-
-			case 0: modelid = 1265 ;
-			case 1: modelid = 1264 ;
-			case 2: modelid = 1220 ;
-			case 3: modelid = 1271 ;
-		}
-
-		//CA_FindZ_For2DCoord(GarbagePoint [ i ] [ E_GARBAGE_POS_X ], GarbagePoint [ i ] [ E_GARBAGE_POS_Y ], fixed_z );
-
-		fixed_z = GarbagePoint [ i ] [ E_GARBAGE_POS_Z ] - 0.75;
-		garbage_object [ i ] = CreateDynamicObject(modelid, GarbagePoint [ i ] [ E_GARBAGE_POS_X ], GarbagePoint [ i ] [ E_GARBAGE_POS_Y ], fixed_z, 0.0, 0.0, 0.0, .priority = STREAM_PRIORITY_INTERACTABLE);
-		CreateDynamic3DTextLabel("[Garbage Job]\n{DEDEDE}LALT to pick up", 0xDEDEDEFF, GarbagePoint [ i ] [ E_GARBAGE_POS_X ], GarbagePoint [ i ] [ E_GARBAGE_POS_Y ], fixed_z, 7.5, .testlos = false );
-	}
+    new objects[256], DynamicText3D:labels[256], sources[256], count;
+    for(new i; i<RuntimeLocationCount; i++) {
+        if(RuntimeLocations[i][RLOC_CATEGORY]!=RT_CATEGORY_GARBAGE || !RuntimeLocations[i][RLOC_ENABLED]) continue;
+        if(count>=256) return 0;
+        sources[count]=i;
+        objects[count]=CreateDynamicObject(1265,RuntimeLocations[i][RLOC_X],RuntimeLocations[i][RLOC_Y],RuntimeLocations[i][RLOC_Z]-0.75,0.0,0.0,0.0,RuntimeLocations[i][RLOC_WORLD],RuntimeLocations[i][RLOC_INTERIOR]);
+        labels[count]=CreateDynamic3DTextLabel("[Garbage Job]\n{DEDEDE}LALT to pick up",0xDEDEDEFF,RuntimeLocations[i][RLOC_X],RuntimeLocations[i][RLOC_Y],RuntimeLocations[i][RLOC_Z],7.5,INVALID_PLAYER_ID,INVALID_VEHICLE_ID,false,RuntimeLocations[i][RLOC_WORLD],RuntimeLocations[i][RLOC_INTERIOR]);
+        count++;
+        if(!IsValidDynamicObject(objects[count-1]) || !IsValidDynamic3DTextLabel(labels[count-1])) {
+            for(new n; n<count; n++) { if(IsValidDynamicObject(objects[n])) DestroyDynamicObject(objects[n]); if(IsValidDynamic3DTextLabel(labels[n])) DestroyDynamic3DTextLabel(labels[n]); }
+            return 0;
+        }
+    }
+    for(new i; i<GarbagePointCount; i++) { if(IsValidDynamicObject(garbage_object[i])) DestroyDynamicObject(garbage_object[i]); if(IsValidDynamic3DTextLabel(GarbageLabels[i])) DestroyDynamic3DTextLabel(GarbageLabels[i]); }
+    GarbagePointCount=count;
+    for(new i; i<count; i++) {
+        garbage_object[i]=objects[i]; GarbageLabels[i]=labels[i]; GarbageSource[i]=sources[i];
+        GarbagePoint[i][E_GARBAGE_POS_X]=RuntimeLocations[sources[i]][RLOC_X]; GarbagePoint[i][E_GARBAGE_POS_Y]=RuntimeLocations[sources[i]][RLOC_Y]; GarbagePoint[i][E_GARBAGE_POS_Z]=RuntimeLocations[sources[i]][RLOC_Z];
+    }
+    return 1;
 }
 
-GarbageJob_FetchNewPoint ( playerid ) {
-
-	new point = random ( sizeof ( GarbagePoint ) ) ;
-
-	new address[ 64 ],Float: x, Float: y, Float: z ;
-	GetPlayerPos(playerid, x, y, z ) ;
-	GetPlayerAddress(GarbagePoint [ point ] [ E_GARBAGE_POS_X ], GarbagePoint [ point ] [ E_GARBAGE_POS_Y ], address) ;
-
-	// Store start point.
-	garbageJobStartPosX[playerid] = x;
-	garbageJobStartPosY[playerid] = y;
-	garbageJobStartPosZ[playerid] = z;
-
-	GPS_MarkLocation(playerid, sprintf("Collect the ~g~trash bags~w~ at %s.", address), E_GPS_COLOR_JOB,GarbagePoint [ point ] [ E_GARBAGE_POS_X ], GarbagePoint [ point ] [ E_GARBAGE_POS_Y ], GarbagePoint [ point ] [ E_GARBAGE_POS_Z ] ) ;
-
-	ShowPlayerInfoMessage(playerid, "Drive to the ~g~checkpoint~w~ on your map and collect the trash bags.", .height=167.5, .width=180, .showtime=6000);
-
-
-	if ( IsValidDynamicArea(PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_AREA ] ) ) {
-		DestroyDynamicArea(PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_AREA ] ) ;
-		PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_AREA ] = -1 ;
-	}
-
-	if ( point == PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_OLD_INDEX ] ) {
-
-		if ( (point + 1) >= sizeof ( GarbagePoint ) ) {
-
-			point -= 1 ;
-		}
-
-		else point += 1 ;
-	}
-
-	PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_AREA ] = CreateDynamicCircle(GarbagePoint [ point ] [ E_GARBAGE_POS_X ], GarbagePoint [ point ] [ E_GARBAGE_POS_Y ], 3.0, -1, -1, playerid ) ;
-	PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB_INDEX ] = point ;
-
-	return true ;
+// Choose only a reachable world/interior and keep the selected target until collection.
+GarbageJob_FetchNewPoint(playerid) {
+    new candidates[256], count;
+    for(new i; i<GarbagePointCount; i++) {
+        new source=GarbageSource[i];
+        if(GetPlayerVirtualWorld(playerid)==RuntimeLocations[source][RLOC_WORLD] && GetPlayerInterior(playerid)==RuntimeLocations[source][RLOC_INTERIOR]) candidates[count++]=i;
+    }
+    if(!count) return SendClientMessage(playerid,COLOR_ERROR,"No collection points are configured in this world. Ask an administrator.");
+    new point=candidates[random(count)], source=GarbageSource[point];
+    if(IsValidDynamicObject(GarbageAssignedObject[playerid])) DestroyDynamicObject(GarbageAssignedObject[playerid]);
+    if(IsValidDynamicArea(PlayerVar[playerid][E_PLAYER_GARBAGEJOB_AREA])) DestroyDynamicArea(PlayerVar[playerid][E_PLAYER_GARBAGEJOB_AREA]);
+    GarbageAssignedModel[playerid]=1265;
+    GarbageAssignedObject[playerid]=CreateDynamicObject(1265,GarbagePoint[point][E_GARBAGE_POS_X],GarbagePoint[point][E_GARBAGE_POS_Y],GarbagePoint[point][E_GARBAGE_POS_Z]-0.75,0.0,0.0,0.0,RuntimeLocations[source][RLOC_WORLD],RuntimeLocations[source][RLOC_INTERIOR],playerid);
+    PlayerVar[playerid][E_PLAYER_GARBAGEJOB_AREA]=CreateDynamicCircle(GarbagePoint[point][E_GARBAGE_POS_X],GarbagePoint[point][E_GARBAGE_POS_Y],3.0,RuntimeLocations[source][RLOC_WORLD],RuntimeLocations[source][RLOC_INTERIOR],playerid);
+    if(!IsValidDynamicObject(GarbageAssignedObject[playerid]) || !IsValidDynamicArea(PlayerVar[playerid][E_PLAYER_GARBAGEJOB_AREA])) {
+        GarbageJob_CancelData(playerid);
+        return SendClientMessage(playerid,COLOR_ERROR,"The collection could not be started. Try again.");
+    }
+    PlayerVar[playerid][E_PLAYER_GARBAGEJOB_INDEX]=point;
+    GetPlayerPos(playerid,garbageJobStartPosX[playerid],garbageJobStartPosY[playerid],garbageJobStartPosZ[playerid]);
+    new address[64]; GetPlayerAddress(GarbagePoint[point][E_GARBAGE_POS_X],GarbagePoint[point][E_GARBAGE_POS_Y],address);
+    GPS_MarkLocation(playerid,sprintf("Collect the ~g~trash bags~w~ at %s.",address),E_GPS_COLOR_JOB,GarbagePoint[point][E_GARBAGE_POS_X],GarbagePoint[point][E_GARBAGE_POS_Y],GarbagePoint[point][E_GARBAGE_POS_Z]);
+    return 1;
 }
 
 // When a player gets near a garbage bag, shows the prompt to pick it up.
@@ -222,6 +186,8 @@ GarbageJob_CalculatePayout(playerid) {
 
 // Cancels the garbage job and clears the player's data.
 GarbageJob_CancelData(playerid) {
+    if(IsValidDynamicObject(GarbageAssignedObject[playerid])) DestroyDynamicObject(GarbageAssignedObject[playerid]);
+    GarbageAssignedObject[playerid]=0;
 
 	// Stopped doing job !
 	PlayerVar [ playerid ] [ E_PLAYER_GARBAGEJOB ] = false ;

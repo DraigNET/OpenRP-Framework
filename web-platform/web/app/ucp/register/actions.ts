@@ -8,14 +8,10 @@ import { sendVerificationEmail } from '@/lib/email'
 import { clientIpFromHeaders } from '@/lib/login-attempts'
 import { env } from '@/lib/env'
 import { randomBytes } from 'crypto'
-import { encode } from 'next-auth/jwt'
 
 const USERNAME_RE = /^[A-Za-z0-9_]{3,24}$/
 const REG_WINDOW = 3600   // 1 hour
 const REG_MAX    = 5      // max attempts per window
-const isProd = process.env.NODE_ENV === 'production'
-const COOKIE_NAME = isProd ? '__Secure-authjs.session-token' : 'authjs.session-token'
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60
 
 export type RegisterState = { error?: string; success?: boolean } | undefined
 
@@ -150,26 +146,3 @@ async function logAttempt(name: string, email: string, ip: string, success: bool
   }).catch(() => {})
 }
 
-// Called after successful registration to auto-login the user
-// Returns the session cookie value so the page can set it
-export async function buildSessionCookie(accountId: number): Promise<{ name: string; value: string }> {
-  const account = await prisma.account.findUnique({ where: { account_id: accountId } })
-  if (!account) throw new Error('Account not found')
-
-  const value = await encode({
-    token: {
-      name: account.account_name,
-      email: account.account_email,
-      sub: String(account.account_id),
-      id: String(account.account_id),
-      staffLevel: account.account_stafflevel,
-      passwordResetRequired: account.password_reset_version === 0,
-      twoFaEnabled: account.twofa_enabled === 1,
-    },
-    secret: env.authSecret,
-    maxAge: SESSION_MAX_AGE,
-    salt: COOKIE_NAME,
-  })
-
-  return { name: COOKIE_NAME, value }
-}

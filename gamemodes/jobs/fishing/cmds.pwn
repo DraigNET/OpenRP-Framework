@@ -298,7 +298,7 @@ CMD:putallback(playerid, params[])
 stock IsAtFishPlace(playerid)
 {
 	if(IsPlayerConnected(playerid)) {
-		for(new x; x < sizeof(FishArea); x++) {
+		for(new x; x < FishAreaCount; x++) {
 			if(IsPlayerInDynamicArea(playerid, FishArea[x]))
 			{
 				return 1;

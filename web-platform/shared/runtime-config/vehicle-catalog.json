@@ -1,0 +1,567 @@
+[
+  {
+    "type": 2,
+    "model": 496,
+    "price": 12000
+  },
+  {
+    "type": 2,
+    "model": 589,
+    "price": 15000
+  },
+  {
+    "type": 2,
+    "model": 587,
+    "price": 22000
+  },
+  {
+    "type": 2,
+    "model": 565,
+    "price": 38000
+  },
+  {
+    "type": 2,
+    "model": 558,
+    "price": 42000
+  },
+  {
+    "type": 2,
+    "model": 559,
+    "price": 45000
+  },
+  {
+    "type": 2,
+    "model": 480,
+    "price": 48000
+  },
+  {
+    "type": 2,
+    "model": 477,
+    "price": 52000
+  },
+  {
+    "type": 2,
+    "model": 555,
+    "price": 120000
+  },
+  {
+    "type": 2,
+    "model": 429,
+    "price": 160000
+  },
+  {
+    "type": 2,
+    "model": 506,
+    "price": 190000
+  },
+  {
+    "type": 2,
+    "model": 415,
+    "price": 220000
+  },
+  {
+    "type": 2,
+    "model": 541,
+    "price": 250000
+  },
+  {
+    "type": 2,
+    "model": 451,
+    "price": 300000
+  },
+  {
+    "type": 2,
+    "model": 562,
+    "price": 320000
+  },
+  {
+    "type": 2,
+    "model": 560,
+    "price": 350000
+  },
+  {
+    "type": 2,
+    "model": 561,
+    "price": 140000
+  },
+  {
+    "type": 0,
+    "model": 518,
+    "price": 32000
+  },
+  {
+    "type": 0,
+    "model": 527,
+    "price": 9500
+  },
+  {
+    "type": 0,
+    "model": 419,
+    "price": 7000
+  },
+  {
+    "type": 0,
+    "model": 533,
+    "price": 16500
+  },
+  {
+    "type": 0,
+    "model": 526,
+    "price": 8000
+  },
+  {
+    "type": 0,
+    "model": 474,
+    "price": 12000
+  },
+  {
+    "type": 0,
+    "model": 517,
+    "price": 19000
+  },
+  {
+    "type": 0,
+    "model": 410,
+    "price": 3500
+  },
+  {
+    "type": 0,
+    "model": 600,
+    "price": 9000
+  },
+  {
+    "type": 0,
+    "model": 436,
+    "price": 4200
+  },
+  {
+    "type": 0,
+    "model": 439,
+    "price": 13500
+  },
+  {
+    "type": 0,
+    "model": 549,
+    "price": 30000
+  },
+  {
+    "type": 0,
+    "model": 491,
+    "price": 10000
+  },
+  {
+    "type": 0,
+    "model": 445,
+    "price": 21000
+  },
+  {
+    "type": 0,
+    "model": 507,
+    "price": 16500
+  },
+  {
+    "type": 0,
+    "model": 585,
+    "price": 12000
+  },
+  {
+    "type": 0,
+    "model": 466,
+    "price": 18000
+  },
+  {
+    "type": 0,
+    "model": 492,
+    "price": 13500
+  },
+  {
+    "type": 0,
+    "model": 546,
+    "price": 11000
+  },
+  {
+    "type": 0,
+    "model": 551,
+    "price": 15000
+  },
+  {
+    "type": 0,
+    "model": 516,
+    "price": 14000
+  },
+  {
+    "type": 0,
+    "model": 467,
+    "price": 15500
+  },
+  {
+    "type": 0,
+    "model": 404,
+    "price": 6500
+  },
+  {
+    "type": 0,
+    "model": 426,
+    "price": 12000
+  },
+  {
+    "type": 0,
+    "model": 547,
+    "price": 8500
+  },
+  {
+    "type": 0,
+    "model": 479,
+    "price": 7500
+  },
+  {
+    "type": 0,
+    "model": 405,
+    "price": 11500
+  },
+  {
+    "type": 0,
+    "model": 458,
+    "price": 6000
+  },
+  {
+    "type": 0,
+    "model": 580,
+    "price": 26000
+  },
+  {
+    "type": 0,
+    "model": 550,
+    "price": 10000
+  },
+  {
+    "type": 0,
+    "model": 540,
+    "price": 11500
+  },
+  {
+    "type": 0,
+    "model": 421,
+    "price": 10500
+  },
+  {
+    "type": 0,
+    "model": 529,
+    "price": 8000
+  },
+  {
+    "type": 0,
+    "model": 566,
+    "price": 15600
+  },
+  {
+    "type": 0,
+    "model": 412,
+    "price": 9000
+  },
+  {
+    "type": 0,
+    "model": 534,
+    "price": 15000
+  },
+  {
+    "type": 0,
+    "model": 535,
+    "price": 16000
+  },
+  {
+    "type": 0,
+    "model": 536,
+    "price": 19500
+  },
+  {
+    "type": 0,
+    "model": 567,
+    "price": 22000
+  },
+  {
+    "type": 0,
+    "model": 575,
+    "price": 17500
+  },
+  {
+    "type": 0,
+    "model": 576,
+    "price": 19000
+  },
+  {
+    "type": 0,
+    "model": 418,
+    "price": 7000
+  },
+  {
+    "type": 0,
+    "model": 400,
+    "price": 14000
+  },
+  {
+    "type": 0,
+    "model": 483,
+    "price": 18000
+  },
+  {
+    "type": 3,
+    "model": 459,
+    "price": 18000
+  },
+  {
+    "type": 3,
+    "model": 482,
+    "price": 26000
+  },
+  {
+    "type": 3,
+    "model": 413,
+    "price": 15000
+  },
+  {
+    "type": 3,
+    "model": 440,
+    "price": 22000
+  },
+  {
+    "type": 3,
+    "model": 414,
+    "price": 30000
+  },
+  {
+    "type": 3,
+    "model": 499,
+    "price": 55000
+  },
+  {
+    "type": 3,
+    "model": 498,
+    "price": 48000
+  },
+  {
+    "type": 3,
+    "model": 456,
+    "price": 65000
+  },
+  {
+    "type": 3,
+    "model": 478,
+    "price": 10000
+  },
+  {
+    "type": 3,
+    "model": 543,
+    "price": 9000
+  },
+  {
+    "type": 3,
+    "model": 422,
+    "price": 12000
+  },
+  {
+    "type": 3,
+    "model": 455,
+    "price": 42000
+  },
+  {
+    "type": 3,
+    "model": 554,
+    "price": 28000
+  },
+  {
+    "type": 3,
+    "model": 403,
+    "price": 80000
+  },
+  {
+    "type": 3,
+    "model": 514,
+    "price": 90000
+  },
+  {
+    "type": 3,
+    "model": 515,
+    "price": 95000
+  },
+  {
+    "type": 3,
+    "model": 420,
+    "price": 25000
+  },
+  {
+    "type": 3,
+    "model": 438,
+    "price": 15000
+  },
+  {
+    "type": 1,
+    "model": 579,
+    "price": 27000
+  },
+  {
+    "type": 1,
+    "model": 500,
+    "price": 19000
+  },
+  {
+    "type": 1,
+    "model": 489,
+    "price": 16000
+  },
+  {
+    "type": 1,
+    "model": 603,
+    "price": 46000
+  },
+  {
+    "type": 1,
+    "model": 402,
+    "price": 42000
+  },
+  {
+    "type": 1,
+    "model": 475,
+    "price": 28000
+  },
+  {
+    "type": 1,
+    "model": 542,
+    "price": 18000
+  },
+  {
+    "type": 1,
+    "model": 545,
+    "price": 52000
+  },
+  {
+    "type": 4,
+    "model": 509,
+    "price": 400
+  },
+  {
+    "type": 4,
+    "model": 481,
+    "price": 550
+  },
+  {
+    "type": 4,
+    "model": 510,
+    "price": 1500
+  },
+  {
+    "type": 4,
+    "model": 462,
+    "price": 2250
+  },
+  {
+    "type": 4,
+    "model": 448,
+    "price": 4000
+  },
+  {
+    "type": 4,
+    "model": 468,
+    "price": 25000
+  },
+  {
+    "type": 4,
+    "model": 581,
+    "price": 56500
+  },
+  {
+    "type": 4,
+    "model": 586,
+    "price": 16500
+  },
+  {
+    "type": 4,
+    "model": 471,
+    "price": 27000
+  },
+  {
+    "type": 4,
+    "model": 463,
+    "price": 30000
+  },
+  {
+    "type": 4,
+    "model": 521,
+    "price": 84500
+  },
+  {
+    "type": 4,
+    "model": 461,
+    "price": 89000
+  },
+  {
+    "type": 6,
+    "model": 473,
+    "price": 30000
+  },
+  {
+    "type": 6,
+    "model": 453,
+    "price": 50000
+  },
+  {
+    "type": 6,
+    "model": 446,
+    "price": 150000
+  },
+  {
+    "type": 6,
+    "model": 452,
+    "price": 200000
+  },
+  {
+    "type": 6,
+    "model": 454,
+    "price": 250000
+  },
+  {
+    "type": 6,
+    "model": 484,
+    "price": 280000
+  },
+  {
+    "type": 6,
+    "model": 493,
+    "price": 300000
+  },
+  {
+    "type": 5,
+    "model": 593,
+    "price": 1550000
+  },
+  {
+    "type": 5,
+    "model": 512,
+    "price": 1550000
+  },
+  {
+    "type": 5,
+    "model": 513,
+    "price": 1510000
+  },
+  {
+    "type": 5,
+    "model": 511,
+    "price": 1800000
+  },
+  {
+    "type": 5,
+    "model": 487,
+    "price": 1770000
+  },
+  {
+    "type": 5,
+    "model": 519,
+    "price": 1800000
+  },
+  {
+    "type": 5,
+    "model": 553,
+    "price": 2100000
+  }
+]

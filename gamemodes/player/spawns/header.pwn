@@ -20,17 +20,28 @@ enum E_SPAWN_AREA_DATA {
 	E_SPAWN_AREA_DESC_EXTRA[64],
 };
 
-new SpawnArea [ ] [ E_SPAWN_AREA_DATA ] = {
+// Compact menu rows retain their source key for safe selections during reloads.
+new SpawnArea[64][E_SPAWN_AREA_DATA], SpawnAreaCount, SpawnSource[64];
 
-	{ "Spawn", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "{5FBD4E}[LS]" } // TODO: set coordinates for your map
-} ;
+Runtime_RebuildSpawns() {
+    SpawnAreaCount=0;
+    for(new i; i<RuntimeLocationCount && SpawnAreaCount<64; i++) {
+        if(RuntimeLocations[i][RLOC_CATEGORY]!=RT_CATEGORY_SPAWN || !RuntimeLocations[i][RLOC_ENABLED]) continue;
+        new row=SpawnAreaCount++;
+        SpawnSource[row]=i;
+        format(SpawnArea[row][E_SPAWN_AREA_DESC],64,"%s",RuntimeLocations[i][RLOC_LABEL]);
+        SpawnArea[row][E_SPAWN_AREA_POS_X]=RuntimeLocations[i][RLOC_X]; SpawnArea[row][E_SPAWN_AREA_POS_Y]=RuntimeLocations[i][RLOC_Y]; SpawnArea[row][E_SPAWN_AREA_POS_Z]=RuntimeLocations[i][RLOC_Z];
+        SpawnArea[row][E_SPAWN_AREA_ROT_Z]=RuntimeLocations[i][RLOC_ANGLE];
+    }
+    return 1;
+}
 
 #define COLOUR_BUS	0xC0CD82FF
 
 // Start-up for the spawn module (the bus stop code is commented out).
 public OnGameModeInit() {
 
-	/*for(new i, j = sizeof ( SpawnArea ); i < j ; i ++ ) {
+	/*for(new i, j = SpawnAreaCount; i < j ; i ++ ) {
 
 		CreateDynamicObject(1257, SpawnArea [ i ] [ E_SPAWN_AREA_POS_X ], SpawnArea [ i ] [ E_SPAWN_AREA_POS_Y ], 
 			SpawnArea [ i ] [ E_SPAWN_AREA_POS_Z ], SpawnArea [ i ] [ E_SPAWN_AREA_ROT_X ], SpawnArea [ i ] [ E_SPAWN_AREA_ROT_Y ],
@@ -80,11 +91,12 @@ public OnGameModeInit() {
 	{
 		format ( string, sizeof ( string ), "has taken a coach to Angel Pine." ) ;
 		ProxDetectorEx(playerid,15.0, COLOR_ACTION, "*", string, .showid = false);
-		SetPlayerInterior(playerid, 0);
-		SetPlayerVirtualWorld(playerid, 0);
+		SetPlayerInterior(playerid, RuntimeLocations[source][RLOC_INTERIOR]);
+		SetPlayerVirtualWorld(playerid, RuntimeLocations[source][RLOC_WORLD]);
 		ORP_SetPosWithFade(playerid, -2208.6614, -2260.7751, 30.6250);
 
-		SetCameraBehindPlayer(playerid);
+		SetPlayerFacingAngle(playerid,RuntimeLocations[source][RLOC_ANGLE]);
+                SetCameraBehindPlayer(playerid);
 		PlayerVar[playerid][E_PLAYER_SPAWNED_CHARACTER] = true;
 		TakePlayerCash ( playerid, 150 ) ;
 	}
@@ -92,8 +104,8 @@ public OnGameModeInit() {
 	{
 		format ( string, sizeof ( string ), "has taken a coach to Dillimore." ) ;
 		ProxDetectorEx(playerid,15.0, COLOR_ACTION, "*", string, .showid = false);
-		SetPlayerInterior(playerid, 0);
-		SetPlayerVirtualWorld(playerid, 0);
+		SetPlayerInterior(playerid, RuntimeLocations[source][RLOC_INTERIOR]);
+		SetPlayerVirtualWorld(playerid, RuntimeLocations[source][RLOC_WORLD]);
 		ORP_SetPosWithFade(playerid, 688.4519,-501.6273,16.3359);
 
 		SetCameraBehindPlayer(playerid);
@@ -140,15 +152,18 @@ CMD:rpl(playerid, params[])
 
 // Shows the starting area list for a new character.
 SpawnArea_SelectionEx(playerid) {
+    if (!SpawnAreaCount) return SendClientMessage(playerid,COLOR_ERROR,"No public spawn is configured. Ask an administrator to enable a spawn in the ACP.");
+    new menuRevision=RuntimeRevision;
+    if (Player_LastSpawnPage[playerid]<1 || (Player_LastSpawnPage[playerid]-1)*10>=SpawnAreaCount) Player_LastSpawnPage[playerid]=1;
 
 	new MAX_ITEMS_ON_PAGE = 10, string [ 512 ], bool: nextpage ;
 
-    new pages = floatround ( sizeof ( SpawnArea ) / MAX_ITEMS_ON_PAGE, floatround_floor ) + 1, 
+    new pages = floatround ( SpawnAreaCount / MAX_ITEMS_ON_PAGE, floatround_floor ) + 1, 
     	resultcount = ( ( MAX_ITEMS_ON_PAGE * Player_LastSpawnPage [ playerid ] ) - MAX_ITEMS_ON_PAGE ) ;
 
     strcat(string, "Area Name\n");
 
-    for ( new i = resultcount; i < sizeof(SpawnArea); i ++ ) {
+    for ( new i = resultcount; i < SpawnAreaCount; i ++ ) {
 
 		resultcount ++ ;
 
@@ -192,6 +207,8 @@ SpawnArea_SelectionEx(playerid) {
 			else if ( listitem < MAX_ITEMS_ON_PAGE ) {
 
 				new selection = ( ( MAX_ITEMS_ON_PAGE * Player_LastSpawnPage [ playerid ] ) - MAX_ITEMS_ON_PAGE ) + listitem;
+                if (menuRevision!=RuntimeRevision || selection<0 || selection>=SpawnAreaCount) return SpawnArea_SelectionEx(playerid);
+                new source=SpawnSource[selection];
 
  				PlayerPlaySound ( playerid, 1085, 0.0, 0.0, 0.0 ) ;
 
@@ -203,8 +220,8 @@ SpawnArea_SelectionEx(playerid) {
 				//SendClientMessage(playerid, -1, sprintf("You've spawned in %s.", SpawnArea [ selection ] [ E_SPAWN_AREA_DESC ] ) ) ;
 				//SetPlayerPos(playerid, SpawnArea [ selection ] [ E_SPAWN_AREA_POS_X ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Y ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Z ] );
 				
-				SetPlayerInterior(playerid, 0);
-				SetPlayerVirtualWorld(playerid, 0);
+				SetPlayerInterior(playerid, RuntimeLocations[source][RLOC_INTERIOR]);
+				SetPlayerVirtualWorld(playerid, RuntimeLocations[source][RLOC_WORLD]);
 				ORP_SetPosWithFade(playerid, SpawnArea [ selection ] [ E_SPAWN_AREA_POS_X ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Y ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Z ]);
  				SetCameraBehindPlayer(playerid);
 				PlayerVar[playerid][E_PLAYER_SPAWNED_CHARACTER] = true;

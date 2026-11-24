@@ -11,6 +11,7 @@ ORP_SetVehicleToRespawn(vehicleid, const reason[32], nokick=false) {
 
 	new veh_enum_id = Vehicle_GetEnumID ( vehicleid );
 	new Float:x, Float:y, Float:z;
+    if(veh_enum_id<0 || veh_enum_id>=sizeof Vehicle) return SetVehicleToRespawn(vehicleid);
 
 	Vehicle_ClearRuntimeVariables(veh_enum_id);
 	Vehicle_ClearTruckerVariables(veh_enum_id);
@@ -90,6 +91,7 @@ ORP_SetVehicleToRespawn(vehicleid, const reason[32], nokick=false) {
 	}
 
 	if (strlen(reason) > 1) printf("[vrespawn] vehicle %d was respawned, reason: %s", vehicleid, reason); // to track random respawns
+    return 1;
 }
 
 

@@ -128,6 +128,9 @@ Player_SetupSpawnVariables(playerid, race, gender) {
 
 // Shows the page-based starting area list (SpawnArea table).
 SpawnArea_Selection(playerid) {
+    if (!SpawnAreaCount) return SendClientMessage(playerid,COLOR_ERROR,"No public spawn is configured. Ask an administrator to enable a spawn in the ACP.");
+    new menuRevision=RuntimeRevision;
+    if (Player_LastSpawnPage[playerid]<1 || (Player_LastSpawnPage[playerid]-1)*10>=SpawnAreaCount) Player_LastSpawnPage[playerid]=1;
 
 	if ( Player_LastSpawnPage [ playerid ] == 0 ) {
 		Player_LastSpawnPage [ playerid ] = 1 ;
@@ -136,12 +139,12 @@ SpawnArea_Selection(playerid) {
 
 	new MAX_ITEMS_ON_PAGE = 10, string [ 512 ], bool: nextpage ;
 
-    new pages = floatround ( sizeof ( SpawnArea ) / MAX_ITEMS_ON_PAGE, floatround_floor ) + 1, 
+    new pages = floatround ( SpawnAreaCount / MAX_ITEMS_ON_PAGE, floatround_floor ) + 1, 
     	resultcount = ( ( MAX_ITEMS_ON_PAGE * Player_LastSpawnPage [ playerid ] ) - MAX_ITEMS_ON_PAGE ) ;
 
     strcat(string, "Area Name\n");
 
-    for ( new i = resultcount; i < sizeof(SpawnArea); i ++ ) {
+    for ( new i = resultcount; i < SpawnAreaCount; i ++ ) {
 
 		resultcount ++ ;
 
@@ -194,6 +197,8 @@ SpawnArea_Selection(playerid) {
 			else if ( listitem < MAX_ITEMS_ON_PAGE ) {
 
 				new selection = ( ( MAX_ITEMS_ON_PAGE * Player_LastSpawnPage [ playerid ] ) - MAX_ITEMS_ON_PAGE ) + listitem;
+                if (menuRevision!=RuntimeRevision || selection<0 || selection>=SpawnAreaCount) return SpawnArea_Selection(playerid);
+                new source=SpawnSource[selection];
 
  				PlayerPlaySound ( playerid, 1085, 0.0, 0.0, 0.0 ) ;
 
@@ -203,7 +208,7 @@ SpawnArea_Selection(playerid) {
 				if (PlayerVar[playerid][E_PLAYER_FIRST_SPAWN])
 				{
 					// This is an actual spawn
-					SetSpawnInfo(playerid, 0, 264, SpawnArea [ selection ] [ E_SPAWN_AREA_POS_X ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Y ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Z ], 0.0, 0, 0, 0, 0, 0, 0);
+					SetSpawnInfo(playerid, 0, 264, SpawnArea [ selection ] [ E_SPAWN_AREA_POS_X ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Y ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Z ], SpawnArea[selection][E_SPAWN_AREA_ROT_Z], 0, 0, 0, 0, 0, 0);
 					CS_SpawnPlayer(playerid);
 				}
 				else
@@ -213,9 +218,10 @@ SpawnArea_Selection(playerid) {
 					SetPlayerPos(playerid, SpawnArea [ selection ] [ E_SPAWN_AREA_POS_X ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Y ], SpawnArea [ selection ] [ E_SPAWN_AREA_POS_Z ] );
 				}
 
- 				SetCameraBehindPlayer(playerid);
- 				SetPlayerInterior(playerid, 0);
-				SetPlayerVirtualWorld(playerid, 0);
+ 				SetPlayerFacingAngle(playerid,RuntimeLocations[source][RLOC_ANGLE]);
+                SetCameraBehindPlayer(playerid);
+ 				SetPlayerInterior(playerid, RuntimeLocations[source][RLOC_INTERIOR]);
+				SetPlayerVirtualWorld(playerid, RuntimeLocations[source][RLOC_WORLD]);
 				TogglePlayerControllable(playerid, true);
 
 				PlayerVar[playerid][E_PLAYER_FRESH_SPAWN_MSG_CD] = gettime () + 5;

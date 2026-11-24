@@ -248,7 +248,7 @@ task HandleIngameTime[TIME_UPDATE_INTERVAL]() {
         Server[E_SERVER_TIME_MINUTES] = 0;
         Server[E_SERVER_WEATHER_TICK]++;
         
-        if(Server[E_SERVER_WEATHER_TICK] >= 1 && random(100) < WEATHER_CHANGE_CHANCE) {
+        if(Runtime_Int(RT_WEATHER_AUTOMATIC) && Server[E_SERVER_WEATHER_TICK] >= 1 && random(100) < WEATHER_CHANGE_CHANCE) {
             Server[E_SERVER_WEATHER_TICK] = 0;
             
             new weather = GetSeasonalWeather();

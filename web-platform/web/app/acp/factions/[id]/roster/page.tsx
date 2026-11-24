@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireStaff, getFactionById, serverNow } from '@/lib/dal'
-import { ADMIN_LVL, factionTierName, factionSquadNames, factionSquadList } from '@/lib/constants'
+import { ADMIN_LVL, factionTierName } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,7 +33,8 @@ export default async function FactionRoster({ params }: PageProps<'/acp/factions
   })
 
   const onlineCount = members.filter(m => m.player_online === 1).length
-  const squadList = factionSquadList(faction.faction_type, faction.faction_abbrev)
+  const squadMap = await loadFactionSquads(faction.faction_id)
+  const squadList = Object.values(squadMap)
 
   return (
     <section className="acp-panel">
@@ -53,7 +54,7 @@ export default async function FactionRoster({ params }: PageProps<'/acp/factions
           </thead>
           <tbody>
             {members.map(m => {
-              const squads = factionSquadNames(faction.faction_type, faction.faction_abbrev, m.player_factionsquad, m.player_factionsquad2, m.player_factionsquad3)
+              const squads = [m.player_factionsquad, m.player_factionsquad2, m.player_factionsquad3].filter(id=>id>0 && squadMap[id]).map(id=>squadMap[id])
               const la = lastActive(m.player_logindate, now)
               return (
                 <tr key={m.player_id}>
@@ -74,3 +75,5 @@ export default async function FactionRoster({ params }: PageProps<'/acp/factions
     </section>
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

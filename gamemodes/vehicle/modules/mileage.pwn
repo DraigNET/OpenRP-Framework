@@ -51,7 +51,7 @@ Vehicle_GetTradeInValue(modelid, mileage)
 		return 0 ;
 	}
 
-	new value = price * Vehicle_GetValuePercent(mileage) / 100 ;
+	new value = Runtime_MoneyPercent(price,Vehicle_GetValuePercent(mileage)) ;
 
 	return ( value < 1 ) ? 1 : value ;
 }

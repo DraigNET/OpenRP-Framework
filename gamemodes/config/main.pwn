@@ -78,11 +78,11 @@ Main_LoadServerSettings()
     //ShowNameTags(false); // handles custom name script (UPDATE 07/07/2024): this the custom name script now bitch
 
     ShowPlayerMarkers(PLAYER_MARKERS_MODE_OFF);
-    SetGameModeText(SERVER_MODE);
+    SetGameModeText(RuntimeText[RT_IDENTITY_MODE]);
 
     // Because special characters get lost when encoding, we don't use this...
     //SendRconCommand("hostname   "SERVER_HOSTNAME"");
-    SendRconCommand("mapname 	"SERVER_MAP"	");
-    SendRconCommand("weburl 	"SERVER_WEBSITE"");
+    SendRconCommand(sprintf("mapname %s",RuntimeText[RT_IDENTITY_MAP]));
+    SendRconCommand(sprintf("weburl %s",RuntimeText[RT_IDENTITY_WEBSITE]));
     //SendRconCommand("password "SERVER_PASSWORD"");
 }

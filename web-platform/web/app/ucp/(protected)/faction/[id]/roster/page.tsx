@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { requireFactionCharacter } from '@/lib/dal'
-import { squadsForFaction } from '@/lib/constants'
 import { RosterClient } from './MemberEditModal'
 import type { RosterMember } from './MemberEditModal'
 
@@ -24,7 +23,7 @@ export default async function FactionRosterPage({ params }: PageProps<'/ucp/fact
   const faction = await prisma.faction.findUnique({ where: { faction_id: char.player_factionid } })
   const fType = faction?.faction_type ?? -1
   const isGang = fType === 1
-  const squadMap = squadsForFaction(fType, faction?.faction_abbrev)
+  const squadMap = await loadFactionSquads(char.player_factionid)
 
   return (
     <RosterClient
@@ -36,3 +35,5 @@ export default async function FactionRosterPage({ params }: PageProps<'/ucp/fact
     />
   )
 }
+
+import { loadFactionSquads } from '@/lib/runtime-squads'

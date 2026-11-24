@@ -39,6 +39,7 @@ scriptfiles/Furniture_Prices.html
 # The clean schema lives in database/schema.sql and IS tracked.
 *.sql
 !/database/schema.sql
+!/database/migrations/*.sql
 !/web-platform/web/prisma/sql/*.sql
 
 # --- editor ------------------------------------------------------------------

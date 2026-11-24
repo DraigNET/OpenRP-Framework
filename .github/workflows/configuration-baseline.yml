@@ -1,0 +1,17 @@
+name: Verify complete configuration baseline
+on:
+  push:
+    paths: ['database/**', 'tools/runtime-config/**', 'web-platform/shared/runtime-config/**', 'gamemodes/config/runtime/**', '.github/workflows/configuration-baseline.yml']
+  pull_request:
+    paths: ['database/**', 'tools/runtime-config/**', 'web-platform/shared/runtime-config/**', 'gamemodes/config/runtime/**', '.github/workflows/configuration-baseline.yml']
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node tools/runtime-config/generate.mjs --check
+      - run: node --test tools/runtime-config/generate.test.mjs
+      - run: node --test web-platform/shared/runtime-config/*.test.mjs

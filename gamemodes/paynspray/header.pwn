@@ -11,8 +11,8 @@
 #define DIALOG_MECHANIC_COLOR_INT   5005
 #define DIALOG_MECHANIC_PAINTJOB    5006
 
-#define PNS_BODYKIT_COST   150
-#define PNS_ENGINE_COST    200
+#define PNS_BODYKIT_COST (Runtime_Int(RT_REPAIRS_BODYKIT_FEE)) // Cached database setting; edit through ACP.
+#define PNS_ENGINE_COST (Runtime_Int(RT_REPAIRS_ENGINE_FEE)) // Cached database setting; edit through ACP.
 
 #include "paynspray/locations.pwn"
 #include "paynspray/natives.pwn"

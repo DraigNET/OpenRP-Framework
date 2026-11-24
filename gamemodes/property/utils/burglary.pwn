@@ -13,7 +13,7 @@ forward BurglaryAlarm_Fire(propertyid);
 #define MAX_BURGLARY_INTERIORS       20
 #define MAX_BURGLARY_OBJECTS         82
 #define BURGLARY_DURATION            120
-#define BURGLARY_COOLDOWN            900
+#define BURGLARY_COOLDOWN (Runtime_Int(RT_BURGLARY_COOLDOWN_SECONDS)) // Cached database setting; edit through ACP.
 #define BURGLARY_EXTERIOR_RANGE      15.0
 #define BURGLARY_ATTACH_SLOT         9
 #define BURGLARY_NOISE_MAX           100

@@ -19,9 +19,9 @@
 // Every purchase needs both FIRM_PERM_VEHICLES and FIRM_PERM_BANK.
 
 #define USEDCARS_PERMS              (FIRM_PERM_VEHICLES | FIRM_PERM_BANK)
-#define USEDCARS_SALE_MIN_PCT       (30)    // lowest asking price, as a % of the new price
-#define USEDCARS_SALE_MAX_PCT       (100)   // highest asking price, as a % of the new price
-#define USEDCARS_ALERT_PCT          (100)   // admins are told when a firm pays more than this % of the new price
+#define USEDCARS_SALE_MIN_PCT (Runtime_Int(RT_VEH_USED_SALE_MIN_PCT)) // Cached database setting; edit through ACP.
+#define USEDCARS_SALE_MAX_PCT (Runtime_Int(RT_VEH_USED_SALE_MAX_PCT)) // Cached database setting; edit through ACP.
+#define USEDCARS_ALERT_PCT (Runtime_Int(RT_VEHICLES_USED_ALERT_PERCENT)) // Cached database setting; edit through ACP.
 #define USEDCARS_POOL_PAGE          (25)
 #define USEDCARS_SALE_RANGE         (6.0)   // how close a customer has to be to a car to buy it
 
@@ -106,8 +106,8 @@ UsedCars_GetPriceRange(modelid, &min_price, &max_price) {
 		return 0 ;
 	}
 
-	min_price = catalog * USEDCARS_SALE_MIN_PCT / 100 ;
-	max_price = catalog * USEDCARS_SALE_MAX_PCT / 100 ;
+	min_price = Runtime_MoneyPercent(catalog,USEDCARS_SALE_MIN_PCT) ;
+	max_price = Runtime_MoneyPercent(catalog,USEDCARS_SALE_MAX_PCT) ;
 
 	return catalog ;
 }
@@ -292,7 +292,7 @@ UsedCars_BuyCarForFirm(sellerid, buyerid, veh_enum_id, price) {
 
 	new catalog = Vehicle_GetCatalogPrice ( Vehicle [ veh_enum_id ] [ E_VEHICLE_MODELID ] ) ;
 
-	if ( price <= 1000 || ( catalog > 0 && price > catalog * USEDCARS_ALERT_PCT / 100 ) ) {
+	if ( price <= 1000 || ( catalog > 0 && price > Runtime_MoneyPercent(catalog,USEDCARS_ALERT_PCT) ) ) {
 
 		SendAdminMessage ( sprintf ( "(%d) %s sold a %s to the used car firm %s (run by %s) for $%s, new price is $%s.", sellerid, ReturnRPName ( sellerid ), model_name,
 			Firm [ firm_enum_id ] [ E_FIRM_NAME ], ReturnRPName ( buyerid ), IntegerWithDelimiter ( price ), IntegerWithDelimiter ( catalog ) ) ) ;

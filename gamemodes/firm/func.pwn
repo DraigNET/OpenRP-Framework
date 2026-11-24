@@ -41,13 +41,13 @@ Firm_GetEnumID(firm_sql_id)
 // Returns true if the index refers to a loaded firm.
 bool:Firm_IsValid(firm_enum_id)
 {
-    return firm_enum_id >= 0 && firm_enum_id < MAX_FIRMS && Firm[firm_enum_id][E_FIRM_ID] != INVALID_FIRM_ID;
+    return firm_enum_id >= 0 && firm_enum_id < MAX_FIRMS && Firm[firm_enum_id][E_FIRM_ID] > 0;
 }
 
 // Returns true if the firm is loaded and active.
 bool:Firm_IsActive(firm_enum_id)
 {
-    return Firm_IsValid(firm_enum_id) && Firm[firm_enum_id][E_FIRM_STATUS] == FIRM_STATUS_ACTIVE;
+    return Firm_IsValid(firm_enum_id) && !FirmClosing[firm_enum_id] && Firm[firm_enum_id][E_FIRM_STATUS] == FIRM_STATUS_ACTIVE;
 }
 
 // Writes a firm's name into name.
@@ -114,7 +114,7 @@ Firm_GetRankName(rank, name[], len = sizeof(name))
 // Returns true if the player is logged in with a character and may use firm commands.
 bool:Firm_PlayerCanAccess(playerid)
 {
-    return IsPlayerLogged(playerid) && Character[playerid][E_CHARACTER_ID] > 0;
+    return IsPlayerLogged(playerid) && Character[playerid][E_CHARACTER_ID] > 0 && !FirmMembershipLoading[playerid];
 }
 
 // Tells the player they can't use firm commands yet.
@@ -149,13 +149,14 @@ Firm_GetCreateFee(field)
 
     switch (field)
     {
-        case FIRM_FIELD_MECHANIC:  fee += 15000;
-        case FIRM_FIELD_SECURITY:  fee += 25000;
-        case FIRM_FIELD_LAWYER:    fee += 10000;
-        case FIRM_FIELD_TRANSIT:   fee += 20000;
-        case FIRM_FIELD_LOGISTICS: fee += 20000;
-        case FIRM_FIELD_USEDCARS:  fee += 35000;
-        case FIRM_FIELD_REALESTATE: fee += 35000;
+        case FIRM_FIELD_MECHANIC: fee += Runtime_Int(RT_FIRMS_MECHANIC_FEE);
+        case FIRM_FIELD_SECURITY: fee += Runtime_Int(RT_FIRMS_SECURITY_FEE);
+        case FIRM_FIELD_LAWYER: fee += Runtime_Int(RT_FIRMS_LAWYER_FEE);
+        case FIRM_FIELD_TRANSIT: fee += Runtime_Int(RT_FIRMS_TRANSIT_FEE);
+        case FIRM_FIELD_LOGISTICS: fee += Runtime_Int(RT_FIRMS_LOGISTICS_FEE);
+        case FIRM_FIELD_USEDCARS: fee += Runtime_Int(RT_FIRMS_USEDCARS_FEE);
+        case FIRM_FIELD_REALESTATE: fee += Runtime_Int(RT_FIRMS_REALESTATE_FEE);
+        case FIRM_FIELD_MEDIA: fee += Runtime_Int(RT_FIRMS_MEDIA_FEE);
     }
 
     return fee;
@@ -222,6 +223,7 @@ bool:Firm_IsValidName(const name[])
 {
     new len = strlen(name);
 
+    for(new i;i<len;i++)if(name[i]<32 || name[i]==127 || name[i]=='<' || name[i]=='>')return false;
     if (len < 3 || len >= MAX_FIRM_NAME)
     {
         return false;
@@ -240,6 +242,7 @@ bool:Firm_IsValidAbbrev(const abbrev[])
 {
     new len = strlen(abbrev);
 
+    for(new i;i<len;i++)if(!((abbrev[i]>='A' && abbrev[i]<='Z') || (abbrev[i]>='a' && abbrev[i]<='z') || (abbrev[i]>='0' && abbrev[i]<='9')))return false;
     if (len < 2 || len >= MAX_FIRM_ABBREV)
     {
         return false;
@@ -338,6 +341,7 @@ bool:Firm_PlayerHasPerm(playerid, permission)
         return false;
     }
 
+    if(!Firm_IsActive(Firm_GetEnumID(PlayerFirm[playerid][E_PLAYER_FIRM_ID])))return false;
     if (PlayerFirm[playerid][E_PLAYER_FIRM_RANK] == 1)
     {
         return true;
@@ -408,11 +412,12 @@ Firm_Log(firm_sql_id, actor_character_id, log_type, const text[])
 // Adds money to a firm's bank and logs it.
 Firm_AddBankMoney(firm_enum_id, amount, const reason[])
 {
-    if (!Firm_IsValid(firm_enum_id) || amount <= 0)
+    if (!Firm_IsActive(firm_enum_id) || amount <= 0)
     {
         return false;
     }
 
+    if(Firm[firm_enum_id][E_FIRM_BANK]>2000000000-amount)return false;
     Firm[firm_enum_id][E_FIRM_BANK] += amount;
 
     new query[256];
@@ -445,66 +450,6 @@ Firm_TakeBankMoney(firm_enum_id, amount, const reason[])
     mysql_tquery(mysql, query);
 
     Firm_Log(Firm[firm_enum_id][E_FIRM_ID], 0, 2, reason);
-    return true;
-}
-
-// Auto-grants the field's associated professional license (e.g. Guard Card
-// for Security) when a character joins a firm, mirroring the license a solo
-// Administration Building applicant would receive. Silently a no-op for fields with no
-// auto-granted license, and for characters who already hold it.
-Firm_GrantFieldLicense(firm_sql_id, character_id)
-{
-    new firm_enum_id = Firm_GetEnumID(firm_sql_id);
-
-    if (!Firm_IsValid(firm_enum_id))
-    {
-        return false;
-    }
-
-    new license_type[32];
-
-    switch (Firm[firm_enum_id][E_FIRM_FIELD])
-    {
-        case FIRM_FIELD_SECURITY: license_type = "security_guard";
-        default: return false;
-    }
-
-    new query[192];
-    mysql_format(mysql, query, sizeof(query),
-        "INSERT IGNORE INTO character_licenses (character_id, license_type, issued_by, issued_at) VALUES (%d, '%e', 0, %d)",
-        character_id, license_type, gettime());
-    mysql_tquery(mysql, query);
-
-    return true;
-}
-
-// Adds a character to a firm with a rank and permissions.
-Firm_AddMember(firm_sql_id, character_id, rank, permissions)
-{
-    new rank_name[MAX_FIRM_RANK_NAME];
-
-    Firm_GetRankName(rank, rank_name, sizeof(rank_name));
-
-    new query[384];
-    mysql_format(mysql, query, sizeof(query),
-        "INSERT INTO firm_members (firm_id, character_id, firm_rank, firm_rank_name, firm_permissions, firm_joined_at) VALUES (%d, %d, %d, '%e', %d, %d) ON DUPLICATE KEY UPDATE firm_rank = VALUES(firm_rank), firm_rank_name = VALUES(firm_rank_name), firm_permissions = VALUES(firm_permissions)",
-        firm_sql_id, character_id, rank, rank_name, permissions, gettime());
-    mysql_tquery(mysql, query);
-
-    Firm_GrantFieldLicense(firm_sql_id, character_id);
-
-    foreach (new playerid: Player)
-    {
-        if (Character[playerid][E_CHARACTER_ID] == character_id)
-        {
-            PlayerFirm[playerid][E_PLAYER_FIRM_ID] = firm_sql_id;
-            PlayerFirm[playerid][E_PLAYER_FIRM_RANK] = rank;
-            PlayerFirm[playerid][E_PLAYER_FIRM_PERMS] = permissions;
-            PlayerFirm[playerid][E_PLAYER_FIRM_DUTY] = false;
-            break;
-        }
-    }
-
     return true;
 }
 
@@ -596,6 +541,7 @@ Firm_Close(firm_enum_id)
         }
     }
 
+    mysql_format(mysql,query,sizeof query,"DELETE FROM firm_members WHERE firm_id=%d",firm_sql_id);mysql_tquery(mysql,query);
     Firm_ClearEntity(firm_enum_id);
     return true;
 }
@@ -659,6 +605,8 @@ Firm_LoadPlayer(playerid)
         return false;
     }
 
+    new character_id=Character[playerid][E_CHARACTER_ID],session=FirmSession[playerid];
+    FirmMembershipLoading[playerid]=true;
     new query[384];
     mysql_format(mysql, query, sizeof(query),
         "SELECT fm.firm_id, fm.firm_rank, fm.firm_permissions FROM firm_members fm INNER JOIN firms f ON f.firm_id = fm.firm_id WHERE fm.character_id = %d AND f.firm_status != %d ORDER BY fm.firm_member_id DESC LIMIT 1",
@@ -666,6 +614,8 @@ Firm_LoadPlayer(playerid)
 
     inline Firm_OnPlayerLoad()
     {
+        if(!IsPlayerConnected(playerid) || Character[playerid][E_CHARACTER_ID]!=character_id || FirmSession[playerid]!=session)return true;
+        FirmMembershipLoading[playerid]=false;
         if (!cache_num_rows())
         {
             return true;
@@ -694,73 +644,6 @@ Firm_OnPlayerClose(playerid)
     }
 
     Firm_ClearPlayer(playerid);
-    return true;
-}
-
-// Creates a firm for a player (charges the fee and makes them the owner).
-Firm_Create(playerid, const name[], const abbrev[], field)
-{
-    new firm_enum_id = Firm_GetFreeID();
-
-    if (firm_enum_id == INVALID_FIRM_ID)
-    {
-        return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", "The firm limit has been reached. Contact a developer.");
-    }
-
-    new fee = Firm_GetCreateFee(field);
-
-    if (GetPlayerCash(playerid) < fee)
-    {
-        return SendServerMessage(playerid, COLOR_ERROR, "Firm", "A3A3A3", sprintf("You need $%s in cash to register this firm.", IntegerWithDelimiter(fee)));
-    }
-
-    format(Firm[firm_enum_id][E_FIRM_NAME], MAX_FIRM_NAME, "%s", name);
-    format(Firm[firm_enum_id][E_FIRM_ABBREV], MAX_FIRM_ABBREV, "%s", abbrev);
-    Firm[firm_enum_id][E_FIRM_FIELD] = field;
-    Firm[firm_enum_id][E_FIRM_STATUS] = FIRM_STATUS_ACTIVE;
-    Firm[firm_enum_id][E_FIRM_OWNER_CHAR_ID] = Character[playerid][E_CHARACTER_ID];
-    Firm[firm_enum_id][E_FIRM_BANK] = 0;
-    Firm[firm_enum_id][E_FIRM_CREATED_AT] = gettime();
-    Firm[firm_enum_id][E_FIRM_UPDATED_AT] = gettime();
-    Firm[firm_enum_id][E_FIRM_MEMBER_SLOTS] = 10;
-    Firm[firm_enum_id][E_FIRM_VEHICLE_SLOTS] = (field == FIRM_FIELD_USEDCARS) ? USEDCARS_DEFAULT_SLOTS : 0;
-    Firm[firm_enum_id][E_FIRM_HEXCOLOR] = 0x5FB9D1FF;
-
-    new query[512];
-    mysql_format(mysql, query, sizeof(query),
-        "INSERT INTO firms (firm_name, firm_abbrev, firm_field, firm_status, firm_owner_char_id, firm_bank, firm_member_slots, firm_vehicle_slots, firm_hex, firm_created_at, firm_updated_at) VALUES ('%e', '%e', %d, %d, %d, 0, 10, %d, %d, %d, %d)",
-        Firm[firm_enum_id][E_FIRM_NAME],
-        Firm[firm_enum_id][E_FIRM_ABBREV],
-        Firm[firm_enum_id][E_FIRM_FIELD],
-        Firm[firm_enum_id][E_FIRM_STATUS],
-        Firm[firm_enum_id][E_FIRM_OWNER_CHAR_ID],
-        Firm[firm_enum_id][E_FIRM_VEHICLE_SLOTS],
-        Firm[firm_enum_id][E_FIRM_HEXCOLOR],
-        Firm[firm_enum_id][E_FIRM_CREATED_AT],
-        Firm[firm_enum_id][E_FIRM_UPDATED_AT]);
-
-    inline Firm_OnCreate()
-    {
-        Firm[firm_enum_id][E_FIRM_ID] = cache_insert_id();
-
-        TakePlayerCash(playerid, fee, "Firm registration");
-        Firm_AddMember(Firm[firm_enum_id][E_FIRM_ID], Character[playerid][E_CHARACTER_ID], 1, FIRM_PERM_ALL);
-        Firm_Log(Firm[firm_enum_id][E_FIRM_ID], Character[playerid][E_CHARACTER_ID], 1, "Firm registered at the Administration Building");
-
-        new field_name[32];
-        Firm_GetFieldName(field, field_name, sizeof(field_name));
-
-        SendServerMessage(playerid, COLOR_BLUE, "Firm", "A3A3A3", sprintf("Registered %s [%s] as a %s firm for $%s.",
-            Firm[firm_enum_id][E_FIRM_NAME],
-            Firm[firm_enum_id][E_FIRM_ABBREV],
-            field_name,
-            IntegerWithDelimiter(fee)));
-
-        AddLogEntry(playerid, LOG_TYPE_FIRM, sprintf("Created firm %s [%s] SQL %d", Firm[firm_enum_id][E_FIRM_NAME], Firm[firm_enum_id][E_FIRM_ABBREV], Firm[firm_enum_id][E_FIRM_ID]));
-        return true;
-    }
-
-    MySQL_TQueryInline(mysql, using inline Firm_OnCreate, query, "");
     return true;
 }
 

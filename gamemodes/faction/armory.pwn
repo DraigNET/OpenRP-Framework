@@ -59,10 +59,10 @@ static enum E_ARMORY_WEAPON_DATA
 static ArmoryType[MAX_FACTION_ARMORY_TYPES][E_ARMORY_TYPE_DATA];
 static Armory[MAX_FACTION_ARMORIES][E_ARMORY_DATA];
 static ArmoryWeapon[MAX_FACTION_ARMORY_WEAPONS][E_ARMORY_WEAPON_DATA];
-static ArmoryDlgStr[2048];
+static ArmoryDlgStr[2048], RuntimeArmoryGeneration;
 
 // Clears one armory type slot.
-static Armory_ResetType(index)
+stock Armory_ResetType(index)
 {
 	ArmoryType[index][E_ARMORY_TYPE_SQLID] = INVALID_ARMORY_ID;
 	ArmoryType[index][E_ARMORY_TYPE_FACTION_ID] = INVALID_FACTION_ID;
@@ -90,7 +90,7 @@ static Armory_ClearVisuals(index)
 }
 
 // Clears one armory (locker) slot.
-static Armory_Reset(index)
+stock Armory_Reset(index)
 {
 	Armory_ClearVisuals(index);
 
@@ -111,7 +111,7 @@ static Armory_Reset(index)
 }
 
 // Clears one armory weapon slot.
-static Armory_ResetWeapon(index)
+stock Armory_ResetWeapon(index)
 {
 	ArmoryWeapon[index][E_ARMORY_WEAPON_SQLID] = INVALID_ARMORY_ID;
 	ArmoryWeapon[index][E_ARMORY_WEAPON_FACTION_ID] = INVALID_FACTION_ID;
@@ -128,7 +128,7 @@ static Armory_ResetWeapon(index)
 }
 
 // Returns the first free armory type slot.
-static Armory_GetFreeTypeSlot()
+stock Armory_GetFreeTypeSlot()
 {
 	for (new i = 0; i < MAX_FACTION_ARMORY_TYPES; i ++)
 	{
@@ -138,7 +138,7 @@ static Armory_GetFreeTypeSlot()
 }
 
 // Returns the first free armory slot.
-static Armory_GetFreeSlot()
+stock Armory_GetFreeSlot()
 {
 	for (new i = 0; i < MAX_FACTION_ARMORIES; i ++)
 	{
@@ -148,7 +148,7 @@ static Armory_GetFreeSlot()
 }
 
 // Returns the first free armory weapon slot.
-static Armory_GetFreeWeaponSlot()
+stock Armory_GetFreeWeaponSlot()
 {
 	for (new i = 0; i < MAX_FACTION_ARMORY_WEAPONS; i ++)
 	{
@@ -245,7 +245,7 @@ static Armory_SetVisuals(index)
 }
 
 // Stores an armory type loaded from the database.
-static Armory_RegisterType(sqlid, faction_id, const name[], enabled)
+stock Armory_RegisterType(sqlid, faction_id, const name[], enabled)
 {
 	new index = Armory_GetFreeTypeSlot();
 	if (index == INVALID_ARMORY_ID)
@@ -263,7 +263,7 @@ static Armory_RegisterType(sqlid, faction_id, const name[], enabled)
 }
 
 // Stores an armory (locker) loaded from the database.
-static Armory_Register(sqlid, faction_id, type_id, const name[], const desc[], Float:x, Float:y, Float:z, interior, virtualworld, enabled, squad = 0)
+stock Armory_Register(sqlid, faction_id, type_id, const name[], const desc[], Float:x, Float:y, Float:z, interior, virtualworld, enabled, squad = 0)
 {
 	new index = Armory_GetFreeSlot();
 	if (index == INVALID_ARMORY_ID)
@@ -293,7 +293,7 @@ static Armory_Register(sqlid, faction_id, type_id, const name[], const desc[], F
 }
 
 // Stores an armory weapon loaded from the database.
-static Armory_RegisterWeapon(sqlid, faction_id, type_id, weapon_id, ammo, tier, squad, off_duty, enabled, sort_order)
+stock Armory_RegisterWeapon(sqlid, faction_id, type_id, weapon_id, ammo, tier, squad, off_duty, enabled, sort_order)
 {
 	new index = Armory_GetFreeWeaponSlot();
 	if (index == INVALID_ARMORY_ID)
@@ -317,92 +317,12 @@ static Armory_RegisterWeapon(sqlid, faction_id, type_id, weapon_id, ammo, tier, 
 }
 
 // Loads all faction armory types, lockers and weapons from the database.
-Armory_LoadEntities()
-{
-	for (new i = 0; i < MAX_FACTION_ARMORY_TYPES; i ++) Armory_ResetType(i);
-	for (new i = 0; i < MAX_FACTION_ARMORIES; i ++) Armory_Reset(i);
-	for (new i = 0; i < MAX_FACTION_ARMORY_WEAPONS; i ++) Armory_ResetWeapon(i);
-
-	print(" * [ARMORY] Loading all armory types, locations and weapons...");
-
-	inline ArmoryWeapons_OnLoad()
-	{
-		for (new i = 0, r = cache_num_rows(); i < r; ++i)
-		{
-			new sqlid, faction_id, type_id, weapon_id, ammo, tier, squad, off_duty, enabled, sort_order;
-			cache_get_value_name_int(i, "armory_weapon_id", sqlid);
-			cache_get_value_name_int(i, "faction_id", faction_id);
-			cache_get_value_name_int(i, "armory_type_id", type_id);
-			cache_get_value_name_int(i, "weapon_id", weapon_id);
-			cache_get_value_name_int(i, "weapon_ammo", ammo);
-			cache_get_value_name_int(i, "tier_limit", tier);
-			cache_get_value_name_int(i, "squad_id", squad);
-			cache_get_value_name_int(i, "off_duty_allowed", off_duty);
-			cache_get_value_name_int(i, "weapon_enabled", enabled);
-			cache_get_value_name_int(i, "sort_order", sort_order);
-
-			Armory_RegisterWeapon(sqlid, faction_id, type_id, weapon_id, ammo, tier, squad, off_duty, enabled, sort_order);
-		}
-
-		printf(" * [ARMORY] Loaded %d armory weapon row(s).", cache_num_rows());
-	}
-
-	inline Armories_OnLoad()
-	{
-		for (new i = 0, r = cache_num_rows(); i < r; ++i)
-		{
-			new sqlid, faction_id, type_id, interior, virtualworld, enabled, squad;
-			new name[64], desc[128];
-			new Float:x, Float:y, Float:z;
-
-			cache_get_value_name_int(i, "armory_id", sqlid);
-			cache_get_value_name_int(i, "faction_id", faction_id);
-			cache_get_value_name_int(i, "armory_type_id", type_id);
-			cache_get_value_name(i, "armory_name", name);
-			cache_get_value_name(i, "armory_desc", desc);
-			cache_get_value_name_float(i, "armory_x", x);
-			cache_get_value_name_float(i, "armory_y", y);
-			cache_get_value_name_float(i, "armory_z", z);
-			cache_get_value_name_int(i, "armory_int", interior);
-			cache_get_value_name_int(i, "armory_vw", virtualworld);
-			cache_get_value_name_int(i, "armory_enabled", enabled);
-
-			// armory_squad comes from the schema. If the column isn't there yet squad stays 0.
-			squad = 0;
-			cache_get_value_name_int(i, "armory_squad", squad);
-
-			Armory_Register(sqlid, faction_id, type_id, name, desc, x, y, z, interior, virtualworld, enabled, squad);
-		}
-
-		printf(" * [ARMORY] Loaded %d armory location(s).", cache_num_rows());
-
-		MySQL_TQueryInline(mysql, using inline ArmoryWeapons_OnLoad,
-			"SELECT armory_weapon_id, faction_id, IFNULL(armory_type_id, 0) AS armory_type_id, weapon_id, weapon_ammo, tier_limit, squad_id, off_duty_allowed, weapon_enabled, sort_order FROM faction_armory_weapons ORDER BY faction_id, IFNULL(armory_type_id, 0), sort_order, armory_weapon_id", "");
-	}
-
-	inline ArmoryTypes_OnLoad()
-	{
-		for (new i = 0, r = cache_num_rows(); i < r; ++i)
-		{
-			new sqlid, faction_id, enabled, name[32];
-			cache_get_value_name_int(i, "armory_type_id", sqlid);
-			cache_get_value_name_int(i, "faction_id", faction_id);
-			cache_get_value_name(i, "type_name", name);
-			cache_get_value_name_int(i, "type_enabled", enabled);
-
-			Armory_RegisterType(sqlid, faction_id, name, enabled);
-		}
-
-		printf(" * [ARMORY] Loaded %d armory type(s).", cache_num_rows());
-
-		MySQL_TQueryInline(mysql, using inline Armories_OnLoad,
-			"SELECT * FROM faction_armories ORDER BY armory_id", "");
-	}
-
-	MySQL_TQueryInline(mysql, using inline ArmoryTypes_OnLoad,
-		"SELECT armory_type_id, faction_id, type_name, type_enabled FROM faction_armory_types ORDER BY faction_id, type_name", "");
-
-	return 1;
+Armory_LoadEntities() {
+    if(!Runtime_EntitiesReady()) return 1;
+    if(Runtime_ConfigurationBusy()) return 0;
+    if(!Runtime_StageArmories()) { print("[ARMORY] Reload rejected; previous configuration retained."); return 0; }
+    if(!Runtime_ActivateArmoryStage()) { Runtime_CancelArmoryStage(); return 0; }
+    return Runtime_CommitArmories();
 }
 
 // Locker squad rule. A locker with a squad is for that squad only; a general
@@ -533,6 +453,7 @@ CMD:armory(playerid)
 
 	new gun_name[32];
 	new count, map[MAX_ARMORY_DIALOG_WEAPONS];
+    new menuGeneration=RuntimeArmoryGeneration;
 
 	inline Armory_Selection(pid, dialogid, response, listitem, string:inputtext[])
 	{
@@ -540,7 +461,9 @@ CMD:armory(playerid)
 
 		if (response)
 		{
-			new index = map[listitem];
+			if(menuGeneration!=RuntimeArmoryGeneration) return cmd_armory(playerid);
+            if(listitem<0 || listitem>=count || Armory_GetUsable(playerid)!=k || !Armory_PlayerCanAccess(playerid,k) || GetPlayerFactionSuspension(playerid)) return SendClientMessage(playerid,COLOR_ERROR,"Reopen the armory at an accessible locker.");
+            new index = map[listitem];
 
 			if (!Armory_PlayerCanSeeWeapon(playerid, k, index))
 			{
@@ -842,6 +765,7 @@ IsPlayerNearArmory(playerid)
 // /armoryplace [armory db id] - (admin) moves an armory locker to your position.
 CMD:armoryplace(playerid, params[])
 {
+    if(Runtime_ConfigurationBusy()) return SendClientMessage(playerid,COLOR_ERROR,"Configuration is being applied. Try again shortly.");
 	if (GetPlayerAdminLevel(playerid) < ADMIN_LVL_GENERAL)
 	{
 		return SendServerMessage(playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.");
@@ -893,7 +817,7 @@ CMD:reloadarmories(playerid, params[])
 		return SendServerMessage(playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.");
 	}
 
-	Armory_LoadEntities();
+	if(!Armory_LoadEntities()) return SendClientMessage(playerid,COLOR_ERROR,"Armory reload could not run. Check configuration status and retry.");
 	SendServerMessage(playerid, COLOR_INFO, "Armory", "A3A3A3", "Reloading armory types, locations and weapons from the database.");
 	AddLogEntry(playerid, LOG_TYPE_SCRIPT, "Reloaded faction armories from the database");
 	return 1;
@@ -940,4 +864,135 @@ stock Armory_GetGunPrice(weapon)
 	}
 
 	return gun_cost;
+}
+// Armory types, lockers and equipment are staged together. Only changed lockers
+// allocate visuals; persistent IDs and unchanged slot/handle assignments survive.
+static RuntimeTypeStage[MAX_FACTION_ARMORY_TYPES][E_ARMORY_TYPE_DATA];
+static RuntimeLockerStage[MAX_FACTION_ARMORIES][E_ARMORY_DATA];
+static RuntimeWeaponStage[MAX_FACTION_ARMORY_WEAPONS][E_ARMORY_WEAPON_DATA];
+static bool:RuntimeLockerChanged[MAX_FACTION_ARMORIES];
+
+Runtime_CancelArmoryStage() {
+    for(new i; i<MAX_FACTION_ARMORIES; i++) if(RuntimeLockerChanged[i]) {
+        if(IsValidDynamicPickup(RuntimeLockerStage[i][E_ARMORY_PICKUP])) DestroyDynamicPickup(RuntimeLockerStage[i][E_ARMORY_PICKUP]);
+        if(IsValidDynamic3DTextLabel(RuntimeLockerStage[i][E_ARMORY_LABEL])) DestroyDynamic3DTextLabel(RuntimeLockerStage[i][E_ARMORY_LABEL]);
+        RuntimeLockerChanged[i]=false;
+    }
+    return 1;
+}
+
+// Snapshot statements can run on the worker connection during live reloads.
+Runtime_QueryArmories(query[],size) {
+    format(query,size,"SELECT 0 kind,armory_type_id id,faction_id faction,0 type_id,type_enabled enabled,0 squad,0 interior,0 world,0 weapon,0 ammo,0 tier,0 off_duty,0 sort_order,0 x,0 y,0 z,type_name name,'' description,0 squad_faction,s.revision revision FROM faction_armory_types JOIN runtime_config_state s ON s.id=1 ");
+    strcat(query,"UNION ALL SELECT 1,armory_id,faction_id,armory_type_id,armory_enabled,armory_squad,armory_int,armory_vw,0,0,0,0,0,armory_x,armory_y,armory_z,armory_name,armory_desc,IFNULL((SELECT faction_id FROM runtime_faction_squads WHERE squad_id=armory_squad AND enabled=1),0),s.revision FROM faction_armories JOIN runtime_config_state s ON s.id=1 ",size);
+    strcat(query,"UNION ALL SELECT 2,armory_weapon_id,faction_id,IFNULL(armory_type_id,0),weapon_enabled,squad_id,0,0,weapon_id,weapon_ammo,tier_limit,off_duty_allowed,sort_order,0,0,0,'','',IFNULL((SELECT q.faction_id FROM runtime_faction_squads q WHERE q.squad_id=w.squad_id AND q.enabled=1),0),s.revision FROM faction_armory_weapons w JOIN runtime_config_state s ON s.id=1 UNION ALL SELECT -1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'','',0,s.revision FROM runtime_config_state s WHERE s.id=1 ORDER BY kind,id",size);
+    return 1;
+}
+
+Runtime_StageArmories(expectedRevision=0,bool:fromCache=false) {
+    Runtime_CancelArmoryStage();
+    for(new i; i<MAX_FACTION_ARMORY_TYPES; i++) for(new c; c<E_ARMORY_TYPE_DATA; c++) RuntimeTypeStage[i][E_ARMORY_TYPE_DATA:c]=0;
+    for(new i; i<MAX_FACTION_ARMORIES; i++) for(new c; c<E_ARMORY_DATA; c++) RuntimeLockerStage[i][E_ARMORY_DATA:c]=0;
+    for(new i; i<MAX_FACTION_ARMORY_WEAPONS; i++) for(new c; c<E_ARMORY_WEAPON_DATA; c++) RuntimeWeaponStage[i][E_ARMORY_WEAPON_DATA:c]=0;
+    new Cache:result=MYSQL_INVALID_CACHE;
+    if(!fromCache) { new query[3072]; Runtime_QueryArmories(query,sizeof query); result=mysql_query(mysql,query); }
+    if(!fromCache && !cache_is_valid(result)) return 0;
+    new rows=cache_num_rows(), types, lockers, weapons, snapshotRevision;
+    if(!rows) { if(!fromCache) cache_delete(result); return 0; }
+    cache_get_value_name_int(0,"revision",snapshotRevision);
+    if(expectedRevision && snapshotRevision!=expectedRevision) { if(!fromCache) cache_delete(result); return 0; }
+    for(new row; row<rows; row++) {
+        new kind,id; cache_get_value_name_int(row,"kind",kind); cache_get_value_name_int(row,"id",id);
+        if(kind==1) {
+            new index=Armory_GetSlotByDBID(id);
+            if(index!=INVALID_ARMORY_ID) for(new c; c<E_ARMORY_DATA; c++) RuntimeLockerStage[index][E_ARMORY_DATA:c]=Armory[index][E_ARMORY_DATA:c];
+        }
+    }
+    new bool:valid=true;
+    for(new row; row<rows; row++) {
+        new kind,id,faction,type_id,enabled,squad,squad_faction,index,name[65],description[129];
+        cache_get_value_name_int(row,"kind",kind);
+        if(kind==-1) continue;
+        cache_get_value_name_int(row,"id",id); cache_get_value_name_int(row,"faction",faction);
+        cache_get_value_name_int(row,"type_id",type_id); cache_get_value_name_int(row,"enabled",enabled); cache_get_value_name_int(row,"squad",squad);
+        cache_get_value_name_int(row,"squad_faction",squad_faction);
+        cache_get_value_name(row,"name",name); cache_get_value_name(row,"description",description);
+        if(id<1 || faction<1 || Faction_GetEnumID(faction)==INVALID_FACTION_ID || enabled<0 || enabled>1 || squad<0 || squad>127 || (squad && squad_faction!=faction) || strfind(name,"\n")!=-1 || strfind(name,"\r")!=-1 || strfind(description,"\n")!=-1 || strfind(description,"\r")!=-1) { valid=false; break; }
+        if(kind==0) {
+            if(types>=MAX_FACTION_ARMORY_TYPES || !name[0] || strlen(name)>31) { valid=false; break; }
+            index=types++;
+            RuntimeTypeStage[index][E_ARMORY_TYPE_SQLID]=id; RuntimeTypeStage[index][E_ARMORY_TYPE_FACTION_ID]=faction;
+            format(RuntimeTypeStage[index][E_ARMORY_TYPE_NAME],32,"%s",name);
+            RuntimeTypeStage[index][E_ARMORY_TYPE_ENABLED]=bool:enabled; RuntimeTypeStage[index][E_ARMORY_TYPE_USED]=true;
+        }else if(kind==1) {
+            if(++lockers>MAX_FACTION_ARMORIES || !name[0] || strlen(name)>63 || strlen(description)>127) { valid=false; break; }
+            new old=Armory_GetSlotByDBID(id); index=old;
+            if(index==INVALID_ARMORY_ID) for(new i; i<MAX_FACTION_ARMORIES; i++) if(!RuntimeLockerStage[i][E_ARMORY_USED]) { index=i; break; }
+            if(index==INVALID_ARMORY_ID) { valid=false; break; }
+            RuntimeLockerStage[index][E_ARMORY_SQLID]=id; RuntimeLockerStage[index][E_ARMORY_FACTION_ID]=faction; RuntimeLockerStage[index][E_ARMORY_TYPE_ID]=type_id;
+            RuntimeLockerStage[index][E_ARMORY_ENABLED]=bool:enabled; RuntimeLockerStage[index][E_ARMORY_SQUAD]=squad; RuntimeLockerStage[index][E_ARMORY_USED]=true;
+            format(RuntimeLockerStage[index][E_ARMORY_NAME],64,"%s",name); format(RuntimeLockerStage[index][E_ARMORY_DESC],128,"%s",description);
+            cache_get_value_name_float(row,"x",RuntimeLockerStage[index][E_ARMORY_X]); cache_get_value_name_float(row,"y",RuntimeLockerStage[index][E_ARMORY_Y]); cache_get_value_name_float(row,"z",RuntimeLockerStage[index][E_ARMORY_Z]);
+            cache_get_value_name_int(row,"interior",RuntimeLockerStage[index][E_ARMORY_INT]); cache_get_value_name_int(row,"world",RuntimeLockerStage[index][E_ARMORY_VW]);
+            if(!(floatabs(RuntimeLockerStage[index][E_ARMORY_X])<=20000.0 && floatabs(RuntimeLockerStage[index][E_ARMORY_Y])<=20000.0 && floatabs(RuntimeLockerStage[index][E_ARMORY_Z])<=20000.0) || RuntimeLockerStage[index][E_ARMORY_INT]<0 || RuntimeLockerStage[index][E_ARMORY_INT]>255 || RuntimeLockerStage[index][E_ARMORY_VW]<0 || RuntimeLockerStage[index][E_ARMORY_VW]>2147483000) { valid=false; break; }
+            new type_slot=-1;
+            for(new i; i<types; i++) if(RuntimeTypeStage[i][E_ARMORY_TYPE_SQLID]==type_id && RuntimeTypeStage[i][E_ARMORY_TYPE_FACTION_ID]==faction) { type_slot=i; break; }
+            if(type_slot==-1) { valid=false; break; }
+            new bool:changed=old==INVALID_ARMORY_ID;
+            if(!changed) for(new c; c<E_ARMORY_DATA; c++) if(c!=_:E_ARMORY_LABEL && c!=_:E_ARMORY_PICKUP && RuntimeLockerStage[index][E_ARMORY_DATA:c]!=Armory[index][E_ARMORY_DATA:c]) { changed=true; break; }
+            // Type names affect labels even when the locker itself did not move.
+            if(!changed) {
+                new previous_type=Armory_GetTypeSlot(type_id);
+                if(previous_type==INVALID_ARMORY_ID || strcmp(ArmoryType[previous_type][E_ARMORY_TYPE_NAME],RuntimeTypeStage[type_slot][E_ARMORY_TYPE_NAME])) changed=true;
+            }
+            if(!changed && enabled && (!IsValidDynamicPickup(RuntimeLockerStage[index][E_ARMORY_PICKUP]) || !IsValidDynamic3DTextLabel(RuntimeLockerStage[index][E_ARMORY_LABEL]))) changed=true;
+            if(!changed) continue;
+            RuntimeLockerChanged[index]=true;
+            RuntimeLockerStage[index][E_ARMORY_PICKUP]=0; RuntimeLockerStage[index][E_ARMORY_LABEL]=DynamicText3D:0;
+            if(enabled) {
+                RuntimeLockerStage[index][E_ARMORY_LABEL]=CreateDynamic3DTextLabel(sprintf("[%d][%s]\n{DEDEDE}%s\n%s",id,name,RuntimeTypeStage[type_slot][E_ARMORY_TYPE_NAME],description),0x3479E3FF,
+                    RuntimeLockerStage[index][E_ARMORY_X],RuntimeLockerStage[index][E_ARMORY_Y],RuntimeLockerStage[index][E_ARMORY_Z],15.0,INVALID_PLAYER_ID,INVALID_VEHICLE_ID,true,RT_STAGING_WORLD,RuntimeLockerStage[index][E_ARMORY_INT]);
+                RuntimeLockerStage[index][E_ARMORY_PICKUP]=CreateDynamicPickup(1275,1,RuntimeLockerStage[index][E_ARMORY_X],RuntimeLockerStage[index][E_ARMORY_Y],RuntimeLockerStage[index][E_ARMORY_Z],RT_STAGING_WORLD,RuntimeLockerStage[index][E_ARMORY_INT]);
+                if(!IsValidDynamicPickup(RuntimeLockerStage[index][E_ARMORY_PICKUP]) || !IsValidDynamic3DTextLabel(RuntimeLockerStage[index][E_ARMORY_LABEL])) { valid=false; break; }
+            }
+        }else if(kind==2) {
+            if(weapons>=MAX_FACTION_ARMORY_WEAPONS) { valid=false; break; }
+            if(type_id<0) { valid=false; break; }
+            if(type_id) {
+                new bool:found;
+                for(new i; i<types; i++) if(RuntimeTypeStage[i][E_ARMORY_TYPE_SQLID]==type_id && RuntimeTypeStage[i][E_ARMORY_TYPE_FACTION_ID]==faction) { found=true; break; }
+                if(!found) { valid=false; break; }
+            }
+            index=weapons++;
+            RuntimeWeaponStage[index][E_ARMORY_WEAPON_SQLID]=id; RuntimeWeaponStage[index][E_ARMORY_WEAPON_FACTION_ID]=faction; RuntimeWeaponStage[index][E_ARMORY_WEAPON_TYPE_ID]=type_id;
+            RuntimeWeaponStage[index][E_ARMORY_WEAPON_ENABLED]=bool:enabled; RuntimeWeaponStage[index][E_ARMORY_WEAPON_SQUAD]=squad; RuntimeWeaponStage[index][E_ARMORY_WEAPON_USED]=true;
+            cache_get_value_name_int(row,"weapon",RuntimeWeaponStage[index][E_ARMORY_WEAPON_ID]); cache_get_value_name_int(row,"ammo",RuntimeWeaponStage[index][E_ARMORY_WEAPON_AMMO]); cache_get_value_name_int(row,"tier",RuntimeWeaponStage[index][E_ARMORY_WEAPON_TIER]); cache_get_value_name_int(row,"sort_order",RuntimeWeaponStage[index][E_ARMORY_WEAPON_SORT]);
+            new off_duty; cache_get_value_name_int(row,"off_duty",off_duty); RuntimeWeaponStage[index][E_ARMORY_WEAPON_OFF_DUTY]=bool:off_duty;
+            if(RuntimeWeaponStage[index][E_ARMORY_WEAPON_ID]<1 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_ID]>31 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_AMMO]<0 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_AMMO]>100000 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_TIER]<0 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_TIER]>10 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_SORT]<0 || RuntimeWeaponStage[index][E_ARMORY_WEAPON_SORT]>10000 || off_duty<0 || off_duty>1) { valid=false; break; }
+        }else { valid=false; break; }
+    }
+    if(!fromCache) cache_delete(result);
+    if(!valid) { Runtime_CancelArmoryStage(); return 0; }
+    return 1;
+}
+
+Runtime_ActivateArmoryStage() {
+    new worlds[1];
+    for(new i; i<MAX_FACTION_ARMORIES; i++) if(RuntimeLockerChanged[i] && RuntimeLockerStage[i][E_ARMORY_ENABLED]) {
+        worlds[0]=RuntimeLockerStage[i][E_ARMORY_VW];
+        if(!Streamer_SetArrayData(STREAMER_TYPE_PICKUP,RuntimeLockerStage[i][E_ARMORY_PICKUP],E_STREAMER_WORLD_ID,worlds) || !Streamer_SetArrayData(STREAMER_TYPE_3D_TEXT_LABEL,RuntimeLockerStage[i][E_ARMORY_LABEL],E_STREAMER_WORLD_ID,worlds)) return 0;
+    }
+    return 1;
+}
+
+Runtime_CommitArmories() {
+    for(new i; i<MAX_FACTION_ARMORIES; i++) {
+        if(Armory[i][E_ARMORY_USED] && (!RuntimeLockerStage[i][E_ARMORY_USED] || RuntimeLockerChanged[i])) Armory_ClearVisuals(i);
+        for(new c; c<E_ARMORY_DATA; c++) Armory[i][E_ARMORY_DATA:c]=RuntimeLockerStage[i][E_ARMORY_DATA:c];
+        RuntimeLockerChanged[i]=false;
+    }
+    for(new i; i<MAX_FACTION_ARMORY_TYPES; i++) for(new c; c<E_ARMORY_TYPE_DATA; c++) ArmoryType[i][E_ARMORY_TYPE_DATA:c]=RuntimeTypeStage[i][E_ARMORY_TYPE_DATA:c];
+    for(new i; i<MAX_FACTION_ARMORY_WEAPONS; i++) for(new c; c<E_ARMORY_WEAPON_DATA; c++) ArmoryWeapon[i][E_ARMORY_WEAPON_DATA:c]=RuntimeWeaponStage[i][E_ARMORY_WEAPON_DATA:c];
+    RuntimeArmoryGeneration++;
+    return 1;
 }

@@ -232,16 +232,36 @@ CMD:quiz(playerid, params[])
 }
 */
 
-// Start-up for the DMV.
-DMV_Init() 
+// Own both handles so a live move replaces, rather than duplicates, the service.
+static DMV_Pickup;
+static DynamicText3D:DMV_Label;
+DMV_Init()
 {
-	CreateDynamicPickup(1581, 1, SERVER_DMV_X, SERVER_DMV_Y, SERVER_DMV_Z );
-	CreateDynamic3DTextLabel(sprintf("%s\n{DEDEDE}Available commands: /taketest", "Department of Motor Vehicles"), COLOR_VEHICLE, SERVER_DMV_X, SERVER_DMV_Y, SERVER_DMV_Z, 15.0 );
+    if (!RuntimeLocations[RT_LOC_DMV][RLOC_ENABLED]) {
+        if (IsValidDynamicPickup(DMV_Pickup)) DestroyDynamicPickup(DMV_Pickup);
+        if (IsValidDynamic3DTextLabel(DMV_Label)) DestroyDynamic3DTextLabel(DMV_Label);
+        DMV_Pickup=0; DMV_Label=DynamicText3D:0;
+        return 1;
+    }
+    new pickup;
+    if(RuntimeLocations[RT_LOC_DMV][RLOC_MODEL]) pickup = CreateDynamicPickup(RuntimeLocations[RT_LOC_DMV][RLOC_MODEL], 1, SERVER_DMV_X, SERVER_DMV_Y, SERVER_DMV_Z, RuntimeLocations[RT_LOC_DMV][RLOC_WORLD], RuntimeLocations[RT_LOC_DMV][RLOC_INTERIOR]);
+    new DynamicText3D:label = CreateDynamic3DTextLabel(sprintf("%s\n{DEDEDE}Available commands: /taketest", RuntimeLocations[RT_LOC_DMV][RLOC_LABEL]), COLOR_VEHICLE, SERVER_DMV_X, SERVER_DMV_Y, SERVER_DMV_Z, 15.0, .worldid=RuntimeLocations[RT_LOC_DMV][RLOC_WORLD], .interiorid=RuntimeLocations[RT_LOC_DMV][RLOC_INTERIOR]);
+    if ((RuntimeLocations[RT_LOC_DMV][RLOC_MODEL] && !IsValidDynamicPickup(pickup)) || !IsValidDynamic3DTextLabel(label)) {
+        if (IsValidDynamicPickup(pickup)) DestroyDynamicPickup(pickup);
+        if (IsValidDynamic3DTextLabel(label)) DestroyDynamic3DTextLabel(label);
+        return 0;
+    }
+    if (IsValidDynamicPickup(DMV_Pickup)) DestroyDynamicPickup(DMV_Pickup);
+    if (IsValidDynamic3DTextLabel(DMV_Label)) DestroyDynamic3DTextLabel(DMV_Label);
+    DMV_Pickup = pickup; DMV_Label = label;
+    return 1;
 }
 
 // /taketest - starts the practical driving test.
 CMD:taketest(playerid) 
 {
+    if (!RuntimeLocations[RT_LOC_DMV][RLOC_ENABLED]) return SendClientMessage(playerid, COLOR_ERROR, "The driving licence service is currently disabled.");
+    new quoted_fee = SERVER_DMV_FEE;
 	if (IsDoingDrivingTest(playerid))
 	    return SendServerMessage ( playerid, COLOR_BLUE, "DMV", "A3A3A3", "You're are already taking the test." ) ;
 
@@ -250,7 +270,7 @@ CMD:taketest(playerid)
 		return SendServerMessage ( playerid, COLOR_BLUE, "DMV", "A3A3A3", sprintf("You don't have enough money to take the test. You need at least $%s.", IntegerWithDelimiter ( SERVER_DMV_FEE ) )) ;
 	}
 
-	if ( ! IsPlayerInRangeOfPoint ( playerid, 5.0, SERVER_DMV_X, SERVER_DMV_Y, SERVER_DMV_Z ) ) {
+	if ( ! Runtime_AtLocation(playerid, RT_LOC_DMV) ) {
 
 		return SendServerMessage ( playerid, COLOR_BLUE, "DMV", "A3A3A3", "You're not near the DMV! Use /gps." ) ;
 	}
@@ -274,7 +294,7 @@ CMD:taketest(playerid)
 	strcat(QuizDialogStr, "\n- You must pull over for emergency vehicles with lights/sirens on.");
 	strcat(QuizDialogStr, "\n- You should always follow the speed limit posted on any traffic sign.\n\n");
 
-	format(QuizDialogStr, sizeof(QuizDialogStr), "%s{FFFFFF}Press {AA3333}OK{FFFFFF} to pay {AA3333}$%s{FFFFFF} and take the driving test.\n", QuizDialogStr, IntegerWithDelimiter(SERVER_DMV_FEE));
+	format(QuizDialogStr, sizeof(QuizDialogStr), "%s{FFFFFF}Press {AA3333}OK{FFFFFF} to pay {AA3333}$%s{FFFFFF} and take the driving test.\n", QuizDialogStr, IntegerWithDelimiter(quoted_fee));
 	strcat(QuizDialogStr, "{ADBEE6}Please only start the test if you have read the above information.");
 
     inline DlgDMVTestStart(pid, dialogid, response, listitem, string:inputtext[]) {
@@ -283,7 +303,9 @@ CMD:taketest(playerid)
         if (response)
         {
             // Start the test and pay the fee
-			TakePlayerCash(playerid, SERVER_DMV_FEE, "DMV fee");
+			if (!Runtime_AtLocation(playerid, RT_LOC_DMV)) return SendClientMessage(playerid, COLOR_ERROR, "The DMV has moved or you left the service point. Open the test again.");
+            if (GetPlayerCash(playerid) < quoted_fee) return SendClientMessage(playerid, COLOR_ERROR, "You can no longer afford this test.");
+            TakePlayerCash(playerid, quoted_fee, "DMV fee");
             PlayerVar[playerid][E_PLAYER_DOING_DMV_TEST] = true;
 
 			QuizQuestion[playerid] = 0;

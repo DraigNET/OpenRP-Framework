@@ -123,7 +123,7 @@ CMD:dealerinfo(playerid, params[]) {
 		}
 
 		format ( string, sizeof ( string ), "%s%s\t%d / %d\t$%s\n", string, ReturnVehicleModelName ( DealershipCars [ i ] [ dealercar_carmodel ] ),
-			DealerStock [ dealerid ] [ i ], DEALER_MAX_STOCK, IntegerWithDelimiter ( Dealer_GetWholesale ( DealershipCars [ i ] [ dealercar_price ] ) ) ) ;
+			DealerStock [ dealerid ] [ i ], DEALER_MAX_STOCK, IntegerWithDelimiter ( Dealer_GetWholesale ( Dealer_GetPriceAt(i) ) ) ) ;
 	}
 
 	format ( title, sizeof ( title ), "%s - Bank: $%s", Dealerships [ dealerid ] [ dealership_name ], IntegerWithDelimiter ( Dealerships [ dealerid ] [ dealership_bank ] ) ) ;
@@ -169,7 +169,7 @@ CMD:dealerorder(playerid, params[]) {
 		}
 
 		format ( row_name, sizeof ( row_name ), "%s ($%s ea) ~w~x%d", ReturnVehicleModelName ( DealershipCars [ i ] [ dealercar_carmodel ] ),
-			IntegerWithDelimiter ( Dealer_GetWholesale ( DealershipCars [ i ] [ dealercar_price ] ) ), DealerStock [ dealerid ] [ i ] ) ;
+			IntegerWithDelimiter ( Dealer_GetWholesale ( Dealer_GetPriceAt(i) ) ), DealerStock [ dealerid ] [ i ] ) ;
 
 		ModelBrowser_AddData ( playerid, DealershipCars [ i ] [ dealercar_carmodel ], row_name ) ;
 	}
@@ -204,7 +204,7 @@ mBrowser:dealer_order(playerid, response, row, model, name[]) {
 		return SendClientMessage ( playerid, COLOR_ERROR, "Vehicle not found." ) ;
 	}
 
-	new room = DEALER_MAX_STOCK - DealerStock [ dealerid ] [ cat_index ], wholesale = Dealer_GetWholesale ( DealershipCars [ cat_index ] [ dealercar_price ] ) ;
+	new room = DEALER_MAX_STOCK - DealerStock [ dealerid ] [ cat_index ], wholesale = Dealer_GetWholesale ( Dealer_GetPriceAt(cat_index) ) ;
 
 	if ( room <= 0 ) {
 

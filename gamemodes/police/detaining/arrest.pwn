@@ -29,24 +29,43 @@ enum E_JAIL_SPAWN
     Float:JAIL_Y,
     Float:JAIL_Z,
     Float:JAIL_A,
+    JAIL_WORLD,
+    JAIL_INTERIOR,
     JAIL_CELL[4]
 };
 
-// TODO: set coordinates for your map -- one row per prison cell. Also update PRISON_VW / PRISON_INT in gamemode.pwn.
-new JailSpawns[][E_JAIL_SPAWN] =
-{
-    {0.0, 0.0, 0.0, 0.0, "C01"},
-    {0.0, 0.0, 0.0, 0.0, "C02"},
-    {0.0, 0.0, 0.0, 0.0, "C03"},
-    {0.0, 0.0, 0.0, 0.0, "C04"}
-};
+// Cell labels are stable three-character codes. Occupied cells are protected
+// from relocation by the shared save service and by the live preflight below.
+new JailSpawns[64][E_JAIL_SPAWN], JailSpawnCount;
+
+Runtime_RebuildPrisonCells() {
+    foreach(new playerid:Player) {
+        if(!Character[playerid][E_CHARACTER_ARREST_CELL][0] || (!Character[playerid][E_CHARACTER_ARREST_TIME] && !Character[playerid][E_CHARACTER_JFL])) continue;
+        new bool:found;
+        for(new i; i<RuntimeLocationCount; i++) {
+            if(RuntimeLocations[i][RLOC_CATEGORY]!=RT_CATEGORY_PRISON_CELL || !RuntimeLocations[i][RLOC_ENABLED] || strcmp(RuntimeLocations[i][RLOC_LABEL],Character[playerid][E_CHARACTER_ARREST_CELL],true)) continue;
+            found=true;
+            if(RuntimeLocations[i][RLOC_X]!=Character[playerid][E_CHARACTER_ARREST_X] || RuntimeLocations[i][RLOC_Y]!=Character[playerid][E_CHARACTER_ARREST_Y] || RuntimeLocations[i][RLOC_Z]!=Character[playerid][E_CHARACTER_ARREST_Z] || RuntimeLocations[i][RLOC_WORLD]!=Character[playerid][E_CHARACTER_ARREST_VW] || RuntimeLocations[i][RLOC_INTERIOR]!=Character[playerid][E_CHARACTER_ARREST_INT]) return 0;
+        }
+        if(!found) return 0;
+    }
+    JailSpawnCount=0;
+    for(new i; i<RuntimeLocationCount; i++) {
+        if(RuntimeLocations[i][RLOC_CATEGORY]!=RT_CATEGORY_PRISON_CELL || !RuntimeLocations[i][RLOC_ENABLED]) continue;
+        new row=JailSpawnCount++;
+        JailSpawns[row][JAIL_X]=RuntimeLocations[i][RLOC_X]; JailSpawns[row][JAIL_Y]=RuntimeLocations[i][RLOC_Y]; JailSpawns[row][JAIL_Z]=RuntimeLocations[i][RLOC_Z]; JailSpawns[row][JAIL_A]=RuntimeLocations[i][RLOC_ANGLE];
+        JailSpawns[row][JAIL_WORLD]=RuntimeLocations[i][RLOC_WORLD]; JailSpawns[row][JAIL_INTERIOR]=RuntimeLocations[i][RLOC_INTERIOR];
+        format(JailSpawns[row][JAIL_CELL],4,"%s",RuntimeLocations[i][RLOC_LABEL]);
+    }
+    return 1;
+}
 
 // The position of each desk in this list is what the IsAt...FrontDesk helpers below check for, so keep
 // the HELPDESK_ defines in step with it.
 #define HELPDESK_CITYHALL   (0)
 #define HELPDESK_SAPD       (1)
 
-static const FacHelpDesk[][E_HELPDESK_DATA] =
+static FacHelpDesk[][E_HELPDESK_DATA] =
 {
     // TODO: set coordinates for your map (these help desks are at 0,0,0 until you do).
     // Administration Building: name changes, paying fines and tickets, registering a firm.
@@ -69,12 +88,12 @@ static Arrest_ResetReleaseTimer(playerid, bool:restore_control = true)
 }
 
 // Where a prisoner appears when they're released after serving their sentence (/releaseme).
-#define PRISON_RELEASE_X    (0.0) // TODO: set coordinates for your map
-#define PRISON_RELEASE_Y    (0.0) // TODO: set coordinates for your map
-#define PRISON_RELEASE_Z    (0.0) // TODO: set coordinates for your map
-#define PRISON_RELEASE_A    (0.0) // TODO: set coordinates for your map
-#define PRISON_RELEASE_INT  0
-#define PRISON_RELEASE_VW   0
+#define PRISON_RELEASE_X (RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_X])
+#define PRISON_RELEASE_Y (RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_Y])
+#define PRISON_RELEASE_Z (RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_Z])
+#define PRISON_RELEASE_A (RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_ANGLE])
+#define PRISON_RELEASE_INT (RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_INTERIOR])
+#define PRISON_RELEASE_VW (RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_WORLD])
 
 // Releases a prisoner: clears their sentence and teleports them to the release point.
 static Arrest_ReleasePlayer(playerid)
@@ -85,10 +104,10 @@ static Arrest_ReleasePlayer(playerid)
     Character[playerid][E_CHARACTER_ARREST_CELL][0] = EOS;
     Character[playerid][E_CHARACTER_JFL]            = 0;
 
-    ORP_SetPlayerPos(playerid, PRISON_RELEASE_X, PRISON_RELEASE_Y, PRISON_RELEASE_Z);
-    SetPlayerFacingAngle(playerid, PRISON_RELEASE_A);
-    SetPlayerInterior(playerid, PRISON_RELEASE_INT);
-    SetPlayerVirtualWorld(playerid, PRISON_RELEASE_VW);
+    if(RuntimeLocations[RT_LOC_PRISON_RELEASE][RLOC_ENABLED]) {
+        ORP_SetPlayerPos(playerid,PRISON_RELEASE_X,PRISON_RELEASE_Y,PRISON_RELEASE_Z);
+        SetPlayerFacingAngle(playerid,PRISON_RELEASE_A); SetPlayerInterior(playerid,PRISON_RELEASE_INT); SetPlayerVirtualWorld(playerid,PRISON_RELEASE_VW);
+    }
 
     if (Character[playerid][E_CHARACTER_SKIN_BEFORE] != 0)
     {
@@ -111,49 +130,35 @@ static Arrest_ReleasePlayer(playerid)
     return true;
 }
 
-// Creates the labels and pickups for the faction help desks.
-Fine_LoadLabel()
-{
-    new str[256];
+new DynamicText3D:HelpDeskLabels[2], HelpDeskPickups[2];
+new const HelpDeskSources[]={RT_LOC_ADMINISTRATION_DESK,RT_LOC_SAPD_DESK};
 
-    for (new i = 0; i < sizeof(FacHelpDesk); i++)
-    {
-        format(str, sizeof(str), "[%s]", FacHelpDesk[i][E_HELPDESK_NAME]);
-        if (strlen(FacHelpDesk[i][E_HELPDESK_DESC]))
-        {
-            strcat(str, "\n");
-            strcat(str, FacHelpDesk[i][E_HELPDESK_DESC]);
+// Repeated loads replace tracked handles and preserve the bell cooldown.
+Fine_LoadLabel() {
+    new DynamicText3D:labels[2], pickups[2];
+    for(new i; i<2; i++) {
+        new source=HelpDeskSources[i];
+        if(!RuntimeLocations[source][RLOC_ENABLED]) continue;
+        labels[i]=CreateDynamic3DTextLabel(sprintf("[%s]\n%s\n{DEDEDE}/ringbell for attention.",RuntimeLocations[source][RLOC_LABEL],FacHelpDesk[i][E_HELPDESK_DESC]),0x3479E3FF,
+            RuntimeLocations[source][RLOC_X],RuntimeLocations[source][RLOC_Y],RuntimeLocations[source][RLOC_Z],15.0,INVALID_PLAYER_ID,INVALID_VEHICLE_ID,true,RuntimeLocations[source][RLOC_WORLD],RuntimeLocations[source][RLOC_INTERIOR]);
+        if(RuntimeLocations[source][RLOC_MODEL]) pickups[i]=CreateDynamicPickup(RuntimeLocations[source][RLOC_MODEL],1,RuntimeLocations[source][RLOC_X],RuntimeLocations[source][RLOC_Y],RuntimeLocations[source][RLOC_Z],RuntimeLocations[source][RLOC_WORLD],RuntimeLocations[source][RLOC_INTERIOR]);
+        if(!IsValidDynamic3DTextLabel(labels[i]) || (RuntimeLocations[source][RLOC_MODEL] && !IsValidDynamicPickup(pickups[i]))) {
+            for(new n; n<2; n++) { if(IsValidDynamic3DTextLabel(labels[n])) DestroyDynamic3DTextLabel(labels[n]); if(IsValidDynamicPickup(pickups[n])) DestroyDynamicPickup(pickups[n]); }
+            return 0;
         }
-        strcat(str, "\n{DEDEDE}Please {3479E3}/ringbell {DEDEDE}for attention.");
-
-        CreateDynamic3DTextLabel(str, 0x3479E3FF,
-            FacHelpDesk[i][E_HELPDESK_X], FacHelpDesk[i][E_HELPDESK_Y], FacHelpDesk[i][E_HELPDESK_Z],
-            15.0, INVALID_PLAYER_ID, INVALID_VEHICLE_ID, 1,
-            FacHelpDesk[i][E_HELPDESK_VW], FacHelpDesk[i][E_HELPDESK_INT]);
-
-        CreateDynamicPickup(FacHelpDesk[i][E_HELPDESK_ICON], 1,
-            FacHelpDesk[i][E_HELPDESK_X], FacHelpDesk[i][E_HELPDESK_Y], FacHelpDesk[i][E_HELPDESK_Z],
-            FacHelpDesk[i][E_HELPDESK_VW], FacHelpDesk[i][E_HELPDESK_INT]);
-
-        printf(" * [HELPDESK] (%d) %s loaded.", i, FacHelpDesk[i][E_HELPDESK_NAME]);
     }
+    for(new i; i<2; i++) {
+        if(IsValidDynamic3DTextLabel(HelpDeskLabels[i])) DestroyDynamic3DTextLabel(HelpDeskLabels[i]);
+        if(IsValidDynamicPickup(HelpDeskPickups[i])) DestroyDynamicPickup(HelpDeskPickups[i]);
+        HelpDeskLabels[i]=labels[i]; HelpDeskPickups[i]=pickups[i];
+        format(FacHelpDesk[i][E_HELPDESK_NAME],64,"%s",RuntimeLocations[HelpDeskSources[i]][RLOC_LABEL]);
+    }
+    return 1;
 }
 
-// Returns which help desk the player is at, or -1.
-IsAtFrontDesk(playerid)
-{
-    for (new i = 0; i < sizeof(FacHelpDesk); i++)
-    {
-        if (FacHelpDesk[i][E_HELPDESK_INT] != -1 && GetPlayerInterior(playerid) != FacHelpDesk[i][E_HELPDESK_INT])
-            continue;
-
-        if (FacHelpDesk[i][E_HELPDESK_VW] != -1 && GetPlayerVirtualWorld(playerid) != FacHelpDesk[i][E_HELPDESK_VW])
-            continue;
-
-        if (IsPlayerInRangeOfPoint(playerid, 5.0,
-            FacHelpDesk[i][E_HELPDESK_X], FacHelpDesk[i][E_HELPDESK_Y], FacHelpDesk[i][E_HELPDESK_Z]))
-            return i;
-    }
+// Disabled desks and mismatched worlds cannot serve players at the origin.
+IsAtFrontDesk(playerid) {
+    for(new i; i<2; i++) if(Runtime_AtLocation(playerid,HelpDeskSources[i])) return i;
     return -1;
 }
 
@@ -381,7 +386,7 @@ CMD:setcell(playerid, params[])
         return SendServerMessage(playerid, COLOR_ERROR, "Error", "A3A3A3", "That player is not currently imprisoned.");
 
     new cellIndex = -1;
-    for (new i = 0; i < sizeof(JailSpawns); i++)
+    for (new i = 0; i < JailSpawnCount; i++)
     {
         if (!strcmp(JailSpawns[i][JAIL_CELL], cellName, true))
         {
@@ -400,12 +405,12 @@ CMD:setcell(playerid, params[])
     Character[targetid][E_CHARACTER_ARREST_X]   = x;
     Character[targetid][E_CHARACTER_ARREST_Y]   = y;
     Character[targetid][E_CHARACTER_ARREST_Z]   = z;
-    Character[targetid][E_CHARACTER_ARREST_VW]  = PRISON_VW;
-    Character[targetid][E_CHARACTER_ARREST_INT] = PRISON_INT;
+    Character[targetid][E_CHARACTER_ARREST_VW]  = JailSpawns[cellIndex][JAIL_WORLD];
+    Character[targetid][E_CHARACTER_ARREST_INT] = JailSpawns[cellIndex][JAIL_INTERIOR];
     strcopy(Character[targetid][E_CHARACTER_ARREST_CELL], JailSpawns[cellIndex][JAIL_CELL], 4);
 
-    SetPlayerVirtualWorld(targetid, PRISON_VW);
-    SetPlayerInterior(targetid, PRISON_INT);
+    SetPlayerVirtualWorld(targetid, JailSpawns[cellIndex][JAIL_WORLD]);
+    SetPlayerInterior(targetid, JailSpawns[cellIndex][JAIL_INTERIOR]);
     SetPlayerPos(targetid, x, y, z);
     SetPlayerFacingAngle(targetid, JailSpawns[cellIndex][JAIL_A]);
 
@@ -413,7 +418,7 @@ CMD:setcell(playerid, params[])
     mysql_format(mysql, query, sizeof(query),
         "UPDATE characters SET player_arrest_x = '%f', player_arrest_y = '%f', player_arrest_z = '%f', \
         player_arrest_vw = %d, player_arrest_int = %d, player_arrest_cell = '%e' WHERE player_id = %d",
-        x, y, z, PRISON_VW, PRISON_INT,
+        x, y, z, JailSpawns[cellIndex][JAIL_WORLD], JailSpawns[cellIndex][JAIL_INTERIOR],
         Character[targetid][E_CHARACTER_ARREST_CELL],
         Character[targetid][E_CHARACTER_ID]);
     mysql_tquery(mysql, query);
@@ -464,15 +469,15 @@ CMD:arrest(playerid, params[])
 
     /*if (time > 15)
     {
-        new rand = random(sizeof(JailSpawns));
+        new rand = random(JailSpawnCount);
 
         strcopy(Character[targetid][E_CHARACTER_ARREST_CELL], JailSpawns[rand][JAIL_CELL], 4);
         
         x = JailSpawns[rand][JAIL_X];
         y = JailSpawns[rand][JAIL_Y];
         z = JailSpawns[rand][JAIL_Z];
-        vw       = PRISON_VW;
-        interior = PRISON_INT;
+        vw       = JailSpawns[rand][JAIL_WORLD];
+        interior = JailSpawns[rand][JAIL_INTERIOR];
 
         SetPlayerVirtualWorld(targetid, vw);
         SetPlayerInterior(targetid, interior);
@@ -665,6 +670,7 @@ Spawn_ArrestJail(playerid, bool:isrespawn)
 // /arrestme [minutes] - arrests yourself (a staff testing tool).
 CMD:arrestme(playerid, params[])
 {
+    if(!JailSpawnCount) return SendClientMessage(playerid,COLOR_ERROR,"Enable at least one prison cell in the ACP first.");
     if (GetPlayerAdminLevel(playerid) < ADMIN_LVL_GENERAL)
         return SendServerMessage(playerid, COLOR_ERROR, "Error", "A3A3A3", "You don't have permission to use this command.");
 
@@ -681,7 +687,7 @@ CMD:arrestme(playerid, params[])
     else
         skin = PrisonSkinsMale[random(sizeof(PrisonSkinsMale))];
 
-    new rand    = random(sizeof(JailSpawns));
+    new rand    = random(JailSpawnCount);
     new Float:x = JailSpawns[rand][JAIL_X];
     new Float:y = JailSpawns[rand][JAIL_Y];
     new Float:z = JailSpawns[rand][JAIL_Z];
@@ -692,13 +698,13 @@ CMD:arrestme(playerid, params[])
     Character[playerid][E_CHARACTER_ARREST_X]    = x;
     Character[playerid][E_CHARACTER_ARREST_Y]    = y;
     Character[playerid][E_CHARACTER_ARREST_Z]    = z;
-    Character[playerid][E_CHARACTER_ARREST_VW]   = PRISON_VW;
-    Character[playerid][E_CHARACTER_ARREST_INT]  = PRISON_INT;
+    Character[playerid][E_CHARACTER_ARREST_VW]   = JailSpawns[rand][JAIL_WORLD];
+    Character[playerid][E_CHARACTER_ARREST_INT]  = JailSpawns[rand][JAIL_INTERIOR];
     strcopy(Character[playerid][E_CHARACTER_ARREST_CELL], JailSpawns[rand][JAIL_CELL], 4);
 
     
-    SetPlayerVirtualWorld(playerid, PRISON_VW);
-    SetPlayerInterior(playerid, PRISON_INT);
+    SetPlayerVirtualWorld(playerid, JailSpawns[rand][JAIL_WORLD]);
+    SetPlayerInterior(playerid, JailSpawns[rand][JAIL_INTERIOR]);
     ORP_SetPosWithFade(playerid, x, y, z, sprintf("Prison Cell %s", Character[playerid][E_CHARACTER_ARREST_CELL]));
     SetPlayerFacingAngle(playerid, JailSpawns[rand][JAIL_A]);
 
@@ -707,7 +713,7 @@ CMD:arrestme(playerid, params[])
         "UPDATE characters SET player_skin_before = %d, player_arrest_x = '%f', player_arrest_y = '%f', player_arrest_z = '%f', \
         player_arrest_vw = %d, player_arrest_int = %d, player_arrest_time = %d, player_arrest_cell = '%e' WHERE player_id = %d",
         Character[playerid][E_CHARACTER_SKIN_BEFORE],
-        x, y, z, PRISON_VW, PRISON_INT,
+        x, y, z, JailSpawns[rand][JAIL_WORLD], JailSpawns[rand][JAIL_INTERIOR],
         Character[playerid][E_CHARACTER_ARREST_TIME],
         Character[playerid][E_CHARACTER_ARREST_CELL],
         Character[playerid][E_CHARACTER_ID]);
@@ -771,7 +777,8 @@ static PlayerJailForLife(playerid, const error[] = EOS)
 // Applies a Jail For Life sentence: puts the prisoner in a random cell.
 static Arrest_ApplyJailForLife(playerid)
 {
-    new rand    = random(sizeof(JailSpawns));
+    if(!JailSpawnCount) return 0;
+    new rand    = random(JailSpawnCount);
     new Float:x = JailSpawns[rand][JAIL_X];
     new Float:y = JailSpawns[rand][JAIL_Y];
     new Float:z = JailSpawns[rand][JAIL_Z];
@@ -780,8 +787,8 @@ static Arrest_ApplyJailForLife(playerid)
     Character[playerid][E_CHARACTER_ARREST_X]    = x;
     Character[playerid][E_CHARACTER_ARREST_Y]    = y;
     Character[playerid][E_CHARACTER_ARREST_Z]    = z;
-    Character[playerid][E_CHARACTER_ARREST_VW]   = PRISON_VW;
-    Character[playerid][E_CHARACTER_ARREST_INT]  = PRISON_INT;
+    Character[playerid][E_CHARACTER_ARREST_VW]   = JailSpawns[rand][JAIL_WORLD];
+    Character[playerid][E_CHARACTER_ARREST_INT]  = JailSpawns[rand][JAIL_INTERIOR];
     Character[playerid][E_CHARACTER_JFL]         = 1;
     strcopy(Character[playerid][E_CHARACTER_ARREST_CELL], JailSpawns[rand][JAIL_CELL], 4);
 
@@ -797,8 +804,8 @@ static Arrest_ApplyJailForLife(playerid)
     SetPlayerSkinEx(playerid, skin);
     Character[playerid][E_CHARACTER_SKINID] = skin;
 
-    SetPlayerVirtualWorld(playerid, PRISON_VW);
-    SetPlayerInterior(playerid, PRISON_INT);
+    SetPlayerVirtualWorld(playerid, JailSpawns[rand][JAIL_WORLD]);
+    SetPlayerInterior(playerid, JailSpawns[rand][JAIL_INTERIOR]);
     ORP_SetPosWithFade(playerid, x, y, z, sprintf("Prison Cell %s", Character[playerid][E_CHARACTER_ARREST_CELL]));
     SetPlayerFacingAngle(playerid, JailSpawns[rand][JAIL_A]);
 
@@ -810,7 +817,7 @@ static Arrest_ApplyJailForLife(playerid)
         "UPDATE characters SET player_arrest_x = '%f', player_arrest_y = '%f', player_arrest_z = '%f', \
         player_arrest_vw = %d, player_arrest_int = %d, player_arrest_time = %d, \
         player_arrest_cell = '%e', player_skin_before = %d, player_skinid = %d, player_jfl = %d WHERE player_id = %d",
-        x, y, z, PRISON_VW, PRISON_INT,
+        x, y, z, JailSpawns[rand][JAIL_WORLD], JailSpawns[rand][JAIL_INTERIOR],
         ARREST_TIME_AWAITING_RELEASE,
         Character[playerid][E_CHARACTER_ARREST_CELL],
         Character[playerid][E_CHARACTER_SKIN_BEFORE],
@@ -856,6 +863,7 @@ CMD:processjfl(playerid, params[])
 
     if (!strcmp(option, "accept", true))
     {
+        if(!JailSpawnCount) return SendClientMessage(playerid,COLOR_ERROR,"Enable at least one prison cell in the ACP first.");
         Arrest_ApplyJailForLife(targetid);
         PlayerVar[targetid][E_PLAYER_JFL_REQUEST]    = 0;
         PlayerVar[targetid][E_PLAYER_JFL_REASON][0]  = EOS;

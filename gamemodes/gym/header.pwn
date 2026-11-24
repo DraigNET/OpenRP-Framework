@@ -261,7 +261,7 @@ CMD:gymstats(playerid)
 stock Gym_Enter(playerid)
 {
 
-    if (IsPlayerInRangeOfPoint(playerid, 5.0, LS_GYM_EXT_X, LS_GYM_EXT_Y, LS_GYM_EXT_Z))
+    if (Runtime_AtLocation(playerid,RT_LOC_GYM_LS))
     {
         ORP_SetPlayerPos(playerid, 772.111999, -3.898649, 1000.728820);   //
         SetPlayerInterior(playerid, 5);
@@ -269,7 +269,7 @@ stock Gym_Enter(playerid)
         return true ;
     }
 
-    else if (IsPlayerInRangeOfPoint(playerid, 5.0, LV_GYM_EXT_X, LV_GYM_EXT_Y, LV_GYM_EXT_Z))
+    else if (Runtime_AtLocation(playerid,RT_LOC_GYM_LV))
     {
 
         ORP_SetPlayerPos(playerid, 773.8752, -78.4129, 1000.6622) ;
@@ -278,7 +278,7 @@ stock Gym_Enter(playerid)
         return true ;
     }
 
-    else if (IsPlayerInRangeOfPoint(playerid, 5.0, SF_GYM_EXT_X, SF_GYM_EXT_Y, SF_GYM_EXT_Z))
+    else if (Runtime_AtLocation(playerid,RT_LOC_GYM_SF))
     {
 
 
@@ -286,14 +286,14 @@ stock Gym_Enter(playerid)
         return true ;
     }
 
-    else if (IsPlayerInRangeOfPoint(playerid, 5.0, BEACH_GYM_EXT_X, BEACH_GYM_EXT_Y, BEACH_GYM_EXT_Z))
+    else if (Runtime_AtLocation(playerid,RT_LOC_GYM_BEACH))
     {
 
         SendClientMessage(playerid, COLOR_RED, "This gym is can not be entered (enex).") ;
         return true ;
     }
 
-    else if (IsPlayerInRangeOfPoint(playerid, 5.0, GANTON_GYM_EXT_X, GANTON_GYM_EXT_Y, GANTON_GYM_EXT_Z))
+    else if (Runtime_AtLocation(playerid,RT_LOC_GYM_GANTON))
     {
 
         SendClientMessage(playerid, COLOR_RED, "This gym is can not be entered (enex).") ;
@@ -314,8 +314,8 @@ Gym_Exit(playerid)
             GetPlayerVirtualWorld(playerid) == 1000)
     {
         ORP_SetPlayerPos(playerid,  LS_GYM_EXT_X, LS_GYM_EXT_Y, LS_GYM_EXT_Z);
-        SetPlayerInterior(playerid, 0);
-        SetPlayerVirtualWorld(playerid, 0);
+        SetPlayerInterior(playerid,RuntimeLocations[RT_LOC_GYM_LS][RLOC_INTERIOR]);
+        SetPlayerVirtualWorld(playerid,RuntimeLocations[RT_LOC_GYM_LS][RLOC_WORLD]);
     }
 
     else if (GetPlayerInterior(playerid) == 7 &&
@@ -338,16 +338,6 @@ public OnGameModeInit()
 
     // Put this shit in an array... (cleanup)
 
-    CreateDynamicPickup(2916, 1, LS_GYM_EXT_X, LS_GYM_EXT_Y, LS_GYM_EXT_Z) ;
-    CreateDynamicMapIcon(LS_GYM_EXT_X, LS_GYM_EXT_Y, LS_GYM_EXT_Z, 54, 0, -1, -1, -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL);
-    CreateDynamicPickup(2916, 1, SF_GYM_EXT_X, SF_GYM_EXT_Y, SF_GYM_EXT_Z) ;
-    CreateDynamicMapIcon(SF_GYM_EXT_X, SF_GYM_EXT_Y, SF_GYM_EXT_Z, 54, 0, -1, -1, -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL);
-    CreateDynamicPickup(2916, 1, LV_GYM_EXT_X, LV_GYM_EXT_Y, LV_GYM_EXT_Z) ;
-    CreateDynamicMapIcon(LV_GYM_EXT_X, LV_GYM_EXT_Y, LV_GYM_EXT_Z, 54, 0, -1, -1, -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL);
-    CreateDynamicPickup(2916, 1, BEACH_GYM_EXT_X, BEACH_GYM_EXT_Y, BEACH_GYM_EXT_Z) ;
-    CreateDynamicMapIcon(BEACH_GYM_EXT_X, BEACH_GYM_EXT_Y, BEACH_GYM_EXT_Z, 54, 0, -1, -1, -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL);
-    CreateDynamicPickup(2916, 1, GANTON_GYM_EXT_X, GANTON_GYM_EXT_Y, GANTON_GYM_EXT_Z) ;
-    CreateDynamicMapIcon(GANTON_GYM_EXT_X, GANTON_GYM_EXT_Y, GANTON_GYM_EXT_Z, 54, 0, -1, -1, -1, STREAMER_MAP_ICON_SD, MAPICON_GLOBAL);
 
 
     CreateDynamicPickup(19555, 1, 2246.5261,	-1695.0239,	13.5370000); // gantongym_fightstylepoint

@@ -1,3 +1,6 @@
+import 'server-only'
+import { prisma } from '../prisma'
+import baseline from '../../../shared/runtime-config/vehicle-catalog.json'
 import { vehicleName, vehicleImage } from './vehicles'
 
 export const DEALERSHIP_TYPES: Record<number, string> = {
@@ -10,53 +13,6 @@ export const DEALERSHIP_TYPES: Record<number, string> = {
   6: 'Boat Dealership',
 }
 
-// [dealershipType, modelId, oldPrice, newPrice]
-const DEALERSHIP_VEHICLES: [number, number, number, number][] = [
-  // Sports
-  [2, 496, 4800, 12000], [2, 589, 6800, 15000], [2, 587, 25000, 22000], [2, 565, 36000, 38000],
-  [2, 558, 30000, 42000], [2, 559, 26000, 45000], [2, 480, 45000, 48000], [2, 477, 35000, 52000],
-  [2, 555, 20000, 120000], [2, 429, 62000, 160000], [2, 506, 55000, 190000], [2, 415, 50000, 220000],
-  [2, 541, 55000, 250000], [2, 451, 67000, 300000], [2, 562, 1600000, 320000], [2, 560, 2050000, 350000],
-  [2, 561, 175000, 140000],
-  // Budget
-  [0, 518, 7000, 32000], [0, 527, 8000, 9500], [0, 419, 6000, 7000], [0, 533, 12000, 16500],
-  [0, 526, 8000, 8000], [0, 474, 12000, 12000], [0, 517, 17500, 19000], [0, 410, 3750, 3500],
-  [0, 600, 9000, 9000], [0, 436, 4000, 4200], [0, 439, 13500, 13500], [0, 549, 5000, 30000],
-  [0, 491, 10000, 10000], [0, 445, 21000, 21000], [0, 507, 16500, 16500], [0, 585, 12000, 12000],
-  [0, 466, 18000, 18000], [0, 492, 13000, 13500], [0, 546, 11000, 11000], [0, 551, 15000, 15000],
-  [0, 516, 14000, 14000], [0, 467, 15500, 15500], [0, 404, 6500, 6500], [0, 426, 12750, 12000],
-  [0, 547, 8500, 8500], [0, 479, 7300, 7500], [0, 405, 11250, 11500], [0, 458, 6000, 6000],
-  [0, 580, 34000, 26000], [0, 550, 10000, 10000], [0, 540, 11500, 11500], [0, 421, 9500, 10500],
-  [0, 529, 8000, 8000], [0, 566, 15600, 15600], [0, 412, 8500, 9000], [0, 534, 15000, 15000],
-  [0, 535, 16000, 16000], [0, 536, 19500, 19500], [0, 567, 22000, 22000], [0, 575, 17500, 17500],
-  [0, 576, 19000, 19000], [0, 418, 7000, 7000], [0, 400, 14000, 14000], [0, 483, 18000, 18000],
-  // Utility
-  [3, 459, 10000, 18000], [3, 482, 12000, 26000], [3, 413, 9000, 15000], [3, 440, 19000, 22000],
-  [3, 414, 9750, 30000], [3, 499, 40000, 55000], [3, 498, 35000, 48000], [3, 456, 40000, 65000],
-  [3, 478, 8000, 10000], [3, 543, 4500, 9000], [3, 422, 7000, 12000], [3, 455, 23000, 42000],
-  [3, 554, 28000, 28000], [3, 403, 45500, 80000], [3, 514, 32000, 90000], [3, 515, 44000, 95000],
-  [3, 420, 25000, 25000], [3, 438, 15000, 15000],
-  // Muscle
-  [1, 579, 27000, 27000], [1, 500, 19000, 19000], [1, 489, 16000, 16000], [1, 603, 31000, 46000],
-  [1, 402, 35000, 42000], [1, 475, 27000, 28000], [1, 542, 11500, 18000], [1, 545, 40000, 52000],
-  // Bike
-  [4, 581, 11000, 56500], [4, 509, 400, 400], [4, 481, 550, 550], [4, 462, 2250, 2250],
-  [4, 521, 23000, 84500], [4, 463, 20000, 30000], [4, 510, 1500, 1500], [4, 461, 26000, 89000],
-  [4, 448, 4000, 4000], [4, 468, 9800, 25000], [4, 586, 11000, 16500], [4, 471, 18000, 27000],
-  // Boat
-  [6, 446, 150000, 150000], [6, 452, 200000, 200000], [6, 453, 50000, 50000], [6, 454, 250000, 250000],
-  [6, 473, 30000, 30000], [6, 484, 250000, 280000], [6, 493, 250000, 300000],
-  // Aircraft
-  [5, 487, 385000, 1770000], [5, 519, 400000, 1800000], [5, 511, 400000, 1800000], [5, 512, 275000, 1550000],
-  [5, 513, 255000, 1510000], [5, 553, 550000, 2100000], [5, 593, 275000, 1550000],
-]
-
-const STORAGE_SLOTS: Record<number, number> = {
-  403: 54, 514: 54, 515: 54,
-  543: 3, 422: 3, 600: 3, 554: 3,
-  440: 8, 482: 6, 499: 10, 414: 24, 456: 32, 455: 36, 478: 4,
-}
-
 export interface DealershipVehicle {
   model: number
   name: string
@@ -66,18 +22,15 @@ export interface DealershipVehicle {
   storage: number
 }
 
-export function dealershipInventory(): Record<number, DealershipVehicle[]> {
-  const out: Record<number, DealershipVehicle[]> = {}
-  for (const [type, model, oldPrice, newPrice] of DEALERSHIP_VEHICLES) {
-    if (!out[type]) out[type] = []
-    out[type].push({
-      model,
-      name: vehicleName(model),
-      oldPrice,
-      newPrice,
-      image: vehicleImage(model),
-      storage: STORAGE_SLOTS[model] ?? 0,
-    })
+// Prices, disabled models and real cargo capacities match the running game.
+export async function dealershipInventory():Promise<Record<number,DealershipVehicle[]>> {
+  const rows=await prisma.$queryRaw<Array<{model_id:number;cargo_slots:number;catalogue_price:number|null;enabled:number}>>`SELECT model_id,cargo_slots,catalogue_price,enabled FROM runtime_vehicle_models`
+  const models=new Map(rows.map(row=>[Number(row.model_id),{cargo_slots:Number(row.cargo_slots),catalogue_price:row.catalogue_price===null?null:Number(row.catalogue_price),enabled:Number(row.enabled)}]))
+  const out:Record<number,DealershipVehicle[]>={}
+  for(const item of baseline) {
+    const row=models.get(item.model)
+    if(!row?.enabled || row.catalogue_price===null) continue
+    ;(out[item.type]??=[]).push({model:item.model,name:vehicleName(item.model),oldPrice:row.catalogue_price,newPrice:row.catalogue_price,image:vehicleImage(item.model),storage:row.cargo_slots})
   }
   return out
 }

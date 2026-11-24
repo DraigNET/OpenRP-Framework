@@ -17,7 +17,7 @@
 #define MAX_METAL_DETECTORS   (20)
 #define METAL_DETECTOR_MODEL  (19302) // stock model; swap for a custom detector model if you add one
 #define METAL_RANGE           (1.2)
-#define METAL_COOLDOWN_MS     (5000)
+#define METAL_COOLDOWN_MS (Runtime_Int(RT_POLICE_METAL_COOLDOWN_MS)) // Cached database setting; edit through ACP.
 #define METAL_DETECTOR_Y      (0.4695)
 
 //------------------------------------------------------

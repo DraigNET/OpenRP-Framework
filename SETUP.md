@@ -37,6 +37,21 @@ SA-MP compatibility is not certified.
 7. Set community details in `web-platform/web/lib/site-config.ts`. Publish your own
    rules and policies before accepting public registrations.
 
+## Runtime configuration setup
+
+Import `database/schema.sql` into a new empty database using an account with
+ALTER, TRIGGER, CREATE ROUTINE and ALTER ROUTINE privileges. The full schema includes current runtime defaults
+and journal triggers; do not apply separate numbered SQL files afterward.
+Keep the trigger definer account available and deploy matching gamemode and web code.
+After initial startup, supported configuration edits apply live.
+
+Use ACP → Configuration with Manager level 7 or higher to place and enable core
+services. A saved revision is not ready until the game reports Applied. Startup
+acknowledgement also waits for connected entity validation. Configure a public spawn,
+hospital, jail/cells and release destination before gameplay. See the searchable
+[configuration guide](https://openrp.draignet.uk/docs/configuration/live-configuration)
+and [current implementation coverage](RUNTIME-CONFIGURATION-PROGRESS.md).
+
 ## Windows without Docker
 
 Use the Windows open.mp runtime and the matching components/plugins listed in
@@ -127,13 +142,11 @@ retained. Graffiti removal is opt-in. YSI uses `scriptfiles/callbackfix.amx`.
 `geoip.db` is retained for optional offline lookups; VPN exceptions use the
 `vpn_whitelist` database table, not an INI file.
 
-## Existing installations and verification
+## Verification
 
-Back up first. Apply `web-platform/web/prisma/sql/framework-web.sql` with a
-MariaDB client, regenerate Prisma and restart web. This additive migration does
-not delete or reseed gameplay data. Do not import fresh-install seeds over a
-populated database or run `prisma db push`: the web ORM models only a subset of
-the full game schema.
+The complete fresh-install schema includes the required web tables and columns.
+Generate Prisma after importing it. Do not run `prisma db push`: the web ORM
+models only a subset of the full game schema.
 
 Run `npm run db:check`, `npm test`, and a production build in web; run the agent's
 checks/tests. Compile stock and enabled optional Pawn features. Verify registration,

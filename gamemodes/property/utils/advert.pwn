@@ -7,13 +7,13 @@
 // ============================================================================
 
 #if !defined ADV_POS_X
-	#define ADV_POS_X (0.0) // TODO: set coordinates for your map
+	#define ADV_POS_X (RuntimeLocations[RT_LOC_ADVERT_AGENCY][RLOC_X]) // Cached database setting; edit through ACP.
 #endif
 #if !defined ADV_POS_Y
-	#define ADV_POS_Y (0.0) // TODO: set coordinates for your map
+	#define ADV_POS_Y (RuntimeLocations[RT_LOC_ADVERT_AGENCY][RLOC_Y]) // Cached database setting; edit through ACP.
 #endif
 #if !defined ADV_POS_Z
-	#define ADV_POS_Z (0.0) // TODO: set coordinates for your map
+	#define ADV_POS_Z (RuntimeLocations[RT_LOC_ADVERT_AGENCY][RLOC_Z]) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined ADV_PICKUP_MODEL
@@ -113,17 +113,7 @@ stock Advert_ResetPlayerCooldowns(playerid) {
 }
 
 // Sets up the advert system at start-up.
-Advert_Init() {
-    print(" * [ADVERTISEMENTS] Loaded advertisements.");
-
-    CreateDynamic3DTextLabel(
-        "[Advertisement Location]\n{DEDEDE}Available commands: /advert, /rumour",
-        COLOR_BLUE, ADV_POS_X, ADV_POS_Y, ADV_POS_Z, 10.0, .testlos = 1
-    );
-
-    CreateDynamicPickup(_:ADV_PICKUP_MODEL, 1, ADV_POS_X, ADV_POS_Y, ADV_POS_Z);
-    CreateDynamicMapIcon(ADV_POS_X, ADV_POS_Y, ADV_POS_Z, ADV_MAP_ICON, 0);
-}
+Advert_Init() { return 1; } // Runtime_RebuildServices owns the handles.
 
 // /activities - shows the recent adverts, rumours and listings.
 CMD:activities(playerid, params[]) {
@@ -209,7 +199,7 @@ CMD:advert(playerid, params[]) {
     new bool:isNewsDuty = bool:IsPlayerInNewsFaction(playerid, true);
 
     if (!isNewsDuty) {
-        if (!IsPlayerInRangeOfPoint(playerid, 5.0, ADV_POS_X, ADV_POS_Y, ADV_POS_Z) && GetPlayerAdminLevel(playerid) < ADMIN_LVL_JUNIOR) {
+        if (!Runtime_AtLocation(playerid,RT_LOC_ADVERT_AGENCY) && GetPlayerAdminLevel(playerid) < ADMIN_LVL_JUNIOR) {
             return SendServerMessage(playerid, COLOR_ERROR, "Advert", "DEDEDE", "You're not in range of the advertisement place!");
         }
 
@@ -374,7 +364,7 @@ CMD:propertyad(playerid, params[])  return cmd_propertyadvert(playerid, params);
 // /rumour [text] - pays to post an anonymous rumour.
 CMD:rumour(playerid, params[]) {
     if (GetPlayerAdminLevel(playerid) < ADMIN_LVL_JUNIOR) {
-        if (!IsPlayerInRangeOfPoint(playerid, 5.0, ADV_POS_X, ADV_POS_Y, ADV_POS_Z)) {
+        if (!Runtime_AtLocation(playerid,RT_LOC_ADVERT_AGENCY)) {
             return SendServerMessage(playerid, COLOR_ERROR, "Advert", "DEDEDE", "You're not in range of the advertisement place!");
         }
     }

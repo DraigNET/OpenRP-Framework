@@ -11,6 +11,9 @@ enum _:PROPERTY_ENTER_TYPES {
 	PROPERTY_NEAR_ANYWHERE
 }
 
+// Property commands use the late-loaded placement adapter.
+forward Runtime_PropertyEntranceInUse(index);
+
 #include "property/data/header.pwn"
 #include "property/func/header.pwn"
 #include "property/utils/header.pwn"

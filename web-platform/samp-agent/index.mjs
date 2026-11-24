@@ -5,7 +5,7 @@ import fs from 'fs'
 import pty from 'node-pty'
 import { EventEmitter } from 'events'
 import { readFileSync, createReadStream, statSync } from 'fs'
-import { join, extname, dirname } from 'path'
+import { join, extname, dirname, resolve } from 'path'
 
 const BIND        = process.env.AGENT_BIND ?? '127.0.0.1'
 const MAX_UPLOAD_BYTES = 32 * 1024 * 1024
@@ -101,7 +101,9 @@ function spawnSamp() {
 
   let proc
   try {
-    proc = pty.spawn(SAMP_BIN, [], {
+    // Windows resolves the executable before applying the child's cwd. Resolve
+    // relative binaries against the configured game folder, not the agent folder.
+    proc = pty.spawn(resolve(SAMP_DIR, SAMP_BIN), [], {
       name: 'xterm',
       cols: 220,
       rows: 50,
@@ -329,6 +331,9 @@ const server = http.createServer((req, res) => {
         chunks.push(chunk)
       })
       req.on('end', async () => {
+        // A rejected stream must not write a partial model or send a second
+        // response after the 413 (which can terminate the agent).
+        if (rejected || req.aborted) return
         try {
           const dir = dirname(abs)
           await fs.promises.mkdir(dir, { recursive: true })

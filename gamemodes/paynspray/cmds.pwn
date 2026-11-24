@@ -11,9 +11,9 @@
 // contaminated fuel are a mechanic's job (see firm/jobs/mechanic.pwn). The price scales with what the
 // vehicle cost new, and is set high enough that calling a mechanic is the better deal.
 
-#define PNS_BODYWORK_MIN_COST       (1000)  // $ for the cheapest vehicles
-#define PNS_BODYWORK_PERCENT        (5)     // % of the vehicle's new price
-#define PNS_ENGINE_MIN_COST         (1500)
+#define PNS_BODYWORK_MIN_COST (Runtime_Int(RT_REPAIRS_BODYWORK_MIN)) // Cached database setting; edit through ACP.
+#define PNS_BODYWORK_PERCENT (Runtime_Int(RT_REPAIRS_BODYWORK_PERCENT)) // Cached database setting; edit through ACP.
+#define PNS_ENGINE_MIN_COST (Runtime_Int(RT_REPAIRS_ENGINE_MIN)) // Cached database setting; edit through ACP.
 #define PNS_ENGINE_PERCENT          (8)
 
 // Returns a repair price as a percentage of the vehicle's catalogue price, with a minimum.

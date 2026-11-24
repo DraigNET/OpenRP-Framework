@@ -13,6 +13,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY web/ ./
+COPY shared/ /shared/
 # Placeholder DATABASE_URL so prisma generate + next build never need a real DB.
 # The real URL is injected by EasyPanel at runtime.
 ENV DATABASE_URL="mysql://user:pass@localhost:3306/db"

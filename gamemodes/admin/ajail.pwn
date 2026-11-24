@@ -8,28 +8,30 @@
 // ============================================================================
 
 #if !defined ADMIN_JAIL_POS_X 
-	#define ADMIN_JAIL_POS_X (0.0) // TODO: set coordinates for your map
+	#define ADMIN_JAIL_POS_X (RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_X]) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined ADMIN_JAIL_POS_Y
-	#define ADMIN_JAIL_POS_Y (0.0) // TODO: set coordinates for your map
+	#define ADMIN_JAIL_POS_Y (RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_Y]) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined ADMIN_JAIL_POS_Z
-	#define ADMIN_JAIL_POS_Z (0.0) // TODO: set coordinates for your map (admin jail room, in a private interior/world) // TODO: set coordinates for your map
+	#define ADMIN_JAIL_POS_Z (RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_Z]) // Cached database setting; edit through ACP.
 #endif
 
 #if !defined ADMIN_JAIL_POS_INT
-	#define ADMIN_JAIL_POS_INT 6
+	#define ADMIN_JAIL_POS_INT (RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_INTERIOR]) // Cached database setting; edit through ACP.
 #endif
 
 #include <YSI_Coding\y_hooks>
-#define ADMIN_JAIL_WORLD 1000
+#define ADMIN_JAIL_WORLD (RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_WORLD]) // Cached database setting; edit through ACP.
 // Measured 2DFX emitter offset inside stock SAMP.img/fire.dff (model 18688).
 #define ADMIN_JAIL_FIRE_OFFSET_X 0.001708984375
 #define ADMIN_JAIL_FIRE_OFFSET_Y 0.0054931640625
 #define ADMIN_JAIL_FIRE_OFFSET_Z 1.6113290786743164
-static ADM_JAIL_AREA;
+static ADM_JAIL_AREA, AdminJailObjects[64], AdminJailObjectCount;
+static bool:AdminJailRebuilding;
+static AdminJailApplied[6], bool:AdminJailHasApplied;
 static bool:AdminJailEnvironment[MAX_PLAYERS];
 static const Float:AdminJailCells[][4] = {
     {-4.4836,  3.4464, 1.0, 267.4665},
@@ -52,47 +54,73 @@ hook OnPlayerConnect(playerid)
     return 1;
 }
 
-hook OnGameModeInit() 
+AdminJail_Rebuild() 
 {
-	// Placeholder cell block built from stock objects (floor + wall ring). Replace with your own map.
+    new signature[6];
+    signature[0]=_:ADMIN_JAIL_POS_X; signature[1]=_:ADMIN_JAIL_POS_Y; signature[2]=_:ADMIN_JAIL_POS_Z;
+    signature[3]=ADMIN_JAIL_WORLD; signature[4]=ADMIN_JAIL_POS_INT; signature[5]=RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_ENABLED];
+    new bool:changed=!AdminJailHasApplied;
+    for(new i; i<6; i++) if(signature[i]!=AdminJailApplied[i]) changed=true;
+    if(!changed) return 1;
+    foreach(new playerid:Player) if(Character[playerid][E_CHARACTER_AJAIL_TIME] && !signature[5]) return 0;
+    new objects[64], count, area;
+    if(signature[5]) {
+    // Placeholder cell block built from stock objects (floor + wall ring). Replace with your own map.
 	for (new fx = -1; fx <= 1; fx++)
 	{
 		for (new fy = -1; fy <= 1; fy++)
 		{
-			CreateDynamicObject(19377, ADMIN_JAIL_POS_X + float(fx) * 10.0, ADMIN_JAIL_POS_Y + float(fy) * 10.0, ADMIN_JAIL_POS_Z - 0.1, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
+			objects[count++]=CreateDynamicObject(19377, ADMIN_JAIL_POS_X + float(fx) * 10.0, ADMIN_JAIL_POS_Y + float(fy) * 10.0, ADMIN_JAIL_POS_Z - 0.1, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
 		}
 	}
 	for (new w = -2; w <= 2; w++)
 	{
-		CreateDynamicObject(19353, ADMIN_JAIL_POS_X + float(w) * 3.0, ADMIN_JAIL_POS_Y - 10.4, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 90.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
-		CreateDynamicObject(19353, ADMIN_JAIL_POS_X + float(w) * 3.0, ADMIN_JAIL_POS_Y + 10.4, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 90.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
+		objects[count++]=CreateDynamicObject(19353, ADMIN_JAIL_POS_X + float(w) * 3.0, ADMIN_JAIL_POS_Y - 10.4, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 90.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
+		objects[count++]=CreateDynamicObject(19353, ADMIN_JAIL_POS_X + float(w) * 3.0, ADMIN_JAIL_POS_Y + 10.4, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 90.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
 	}
 	for (new w = -3; w <= 3; w++)
 	{
-		CreateDynamicObject(19353, ADMIN_JAIL_POS_X - 7.4, ADMIN_JAIL_POS_Y + float(w) * 3.0, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
-		CreateDynamicObject(19353, ADMIN_JAIL_POS_X + 7.4, ADMIN_JAIL_POS_Y + float(w) * 3.0, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
+		objects[count++]=CreateDynamicObject(19353, ADMIN_JAIL_POS_X - 7.4, ADMIN_JAIL_POS_Y + float(w) * 3.0, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
+		objects[count++]=CreateDynamicObject(19353, ADMIN_JAIL_POS_X + 7.4, ADMIN_JAIL_POS_Y + float(w) * 3.0, ADMIN_JAIL_POS_Z + 1.4, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 300.0, 300.0);
 	}
     // Stock water stays below the walking surface, visible only in floor recesses.
     for (new column = 0; column < 3; column++)
     {
         for (new row = 0; row < 4; row++)
         {
-            CreateDynamicObject(19603, ADMIN_JAIL_POS_X - 5.0 + float(column) * 5.0, ADMIN_JAIL_POS_Y - 7.5 + float(row) * 5.0, ADMIN_JAIL_POS_Z - 0.025, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 150.0, 150.0);
+            objects[count++]=CreateDynamicObject(19603, ADMIN_JAIL_POS_X - 5.0 + float(column) * 5.0, ADMIN_JAIL_POS_Y - 7.5 + float(row) * 5.0, ADMIN_JAIL_POS_Z - 0.025, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 150.0, 150.0);
         }
     }
     // Stock fire particles reliably render on SA-MP clients; custom DFF has 2DFX lights.
-    CreateDynamicObject(18688, ADMIN_JAIL_POS_X - 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y - 8.0 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
-    CreateDynamicObject(18688, ADMIN_JAIL_POS_X + 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y - 3.0 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
-    CreateDynamicObject(18688, ADMIN_JAIL_POS_X - 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y + 2.0 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
-    CreateDynamicObject(18688, ADMIN_JAIL_POS_X + 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y + 5.6 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
-	ADM_JAIL_AREA = CreateDynamicCuboid(ADMIN_JAIL_POS_X - 7.4, ADMIN_JAIL_POS_Y - 10.4, ADMIN_JAIL_POS_Z - 0.5, ADMIN_JAIL_POS_X + 7.4, ADMIN_JAIL_POS_Y + 10.4, ADMIN_JAIL_POS_Z + 6.5, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT);
+    objects[count++]=CreateDynamicObject(18688, ADMIN_JAIL_POS_X - 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y - 8.0 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
+    objects[count++]=CreateDynamicObject(18688, ADMIN_JAIL_POS_X + 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y - 3.0 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
+    objects[count++]=CreateDynamicObject(18688, ADMIN_JAIL_POS_X - 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y + 2.0 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
+    objects[count++]=CreateDynamicObject(18688, ADMIN_JAIL_POS_X + 1.59 - ADMIN_JAIL_FIRE_OFFSET_X, ADMIN_JAIL_POS_Y + 5.6 - ADMIN_JAIL_FIRE_OFFSET_Y, ADMIN_JAIL_POS_Z + 2.85 - ADMIN_JAIL_FIRE_OFFSET_Z, 0.0, 0.0, 0.0, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT, -1, 100.0, 100.0);
+	area = CreateDynamicCuboid(ADMIN_JAIL_POS_X - 7.4, ADMIN_JAIL_POS_Y - 10.4, ADMIN_JAIL_POS_Z - 0.5, ADMIN_JAIL_POS_X + 7.4, ADMIN_JAIL_POS_Y + 10.4, ADMIN_JAIL_POS_Z + 6.5, ADMIN_JAIL_WORLD, ADMIN_JAIL_POS_INT);
 
-	return 1;
+    new bool:valid=IsValidDynamicArea(area);
+    for(new i; i<count; i++) if(!IsValidDynamicObject(objects[i])) valid=false;
+    if(!valid) {
+        for(new i; i<count; i++) if(IsValidDynamicObject(objects[i])) DestroyDynamicObject(objects[i]);
+        if(IsValidDynamicArea(area)) DestroyDynamicArea(area);
+        return 0;
+    }
+    }
+    AdminJailRebuilding=true;
+    for(new i; i<AdminJailObjectCount; i++) if(IsValidDynamicObject(AdminJailObjects[i])) DestroyDynamicObject(AdminJailObjects[i]);
+    if(IsValidDynamicArea(ADM_JAIL_AREA)) DestroyDynamicArea(ADM_JAIL_AREA);
+    AdminJailObjectCount=count; ADM_JAIL_AREA=area;
+    for(new i; i<count; i++) AdminJailObjects[i]=objects[i];
+    for(new i; i<6; i++) AdminJailApplied[i]=signature[i];
+    AdminJailHasApplied=true;
+    foreach(new playerid:Player) if(Character[playerid][E_CHARACTER_AJAIL_TIME]) { PauseAC(playerid,3); SetPlayerIntoAdminJail(playerid); }
+    AdminJailRebuilding=false;
+    return 1;
 }
 
 hook OnPlayerLeaveDynArea(playerid, STREAMER_TAG_AREA:areaid)
 {
-	if (areaid == ADM_JAIL_AREA && Character[playerid][E_CHARACTER_AJAIL_TIME])
+	if (!AdminJailRebuilding && areaid == ADM_JAIL_AREA && Character[playerid][E_CHARACTER_AJAIL_TIME])
 	{
 		new acstr[144];
 		format(acstr, sizeof(acstr), "[AntiCheat]: (%d) %s may have warped out of admin jail.", playerid, ReturnRPName(playerid));
@@ -125,10 +153,12 @@ CMD:gotoadminroom(playerid, params[]) {
 // Teleports a staff member into the admin meeting room.
 SetPlayerIntoAdminRoom(playerid)
 {
-	SetPlayerInterior(playerid, 10);
-	SetPlayerVirtualWorld(playerid, 850);
-	ORP_SetPosWithFade(playerid, -0.0640,-10.1529,1501.0000, "Meeting Room");
-	SetPlayerFacingAngle(playerid, 359.9012);
+    if(!RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_ENABLED]) return SendClientMessage(playerid,COLOR_ERROR,"The staff room is not configured in the ACP.");
+    SetPlayerInterior(playerid,RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_INTERIOR]);
+    SetPlayerVirtualWorld(playerid,RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_WORLD]);
+    ORP_SetPosWithFade(playerid,RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_X],RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_Y],RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_Z],"Meeting Room");
+    SetPlayerFacingAngle(playerid,RuntimeLocations[RT_LOC_STAFF_ROOM][RLOC_ANGLE]);
+    return 1;
 }
 
 // /gotoajail - (junior admin+) visit the admin jail without being jailed.
@@ -148,6 +178,7 @@ CMD:gotoajail(playerid, params[]) {
 // at the room entrance instead.
 SetPlayerIntoAdminJail(playerid, bool:visitor = false)
 {
+    if(!RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_ENABLED]) return SendClientMessage(playerid,COLOR_ERROR,"Admin jail is not configured in the ACP.");
     // Everyone shares the dungeon; distribute prisoners among its six cells.
     new cell = playerid % sizeof(AdminJailCells);
     new Float:x = ADMIN_JAIL_POS_X + 0.0482, Float:y = ADMIN_JAIL_POS_Y + 8.5200;
@@ -168,6 +199,7 @@ SetPlayerIntoAdminJail(playerid, bool:visitor = false)
     ORP_SetPosWithFade(playerid, x, y, z, "Admin Dungeon");
     SetPlayerFacingAngle(playerid, angle);
     SetCameraBehindPlayer(playerid);
+    return 1;
 }
 
 // True while the player still has admin jail time left. Admin-jailed players can't be hurt or
@@ -181,6 +213,7 @@ IsPlayerInAdminJail(playerid)
 // in AdminJail_Tick.
 CMD:ajail(playerid, params[])
 {
+    if(!RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_ENABLED]) return SendClientMessage(playerid,COLOR_ERROR,"Configure and enable admin jail in the ACP first.");
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_JUNIOR ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.") ;
@@ -295,6 +328,7 @@ CMD:unajail(playerid, params[]) {
 // /offlineajail [character name] [minutes] [reason] - admin-jails a character who is not online;
 // takes effect when they next log in.
 CMD:offlineajail(playerid, params[]) {
+    if(!RuntimeLocations[RT_LOC_ADMIN_JAIL][RLOC_ENABLED]) return SendClientMessage(playerid,COLOR_ERROR,"Configure and enable admin jail in the ACP first.");
 	if ( GetPlayerAdminLevel ( playerid ) < ADMIN_LVL_JUNIOR ) {
 
 		return SendServerMessage ( playerid, COLOR_ERROR, "Access Denied", "A3A3A3", "You don't have access to this command.") ;
@@ -472,4 +506,5 @@ Spawn_AdminJail(playerid, bool:isrespawn)
 
 	// Must call this
 	// Spawn_Common(playerid, isrespawn);
+    return 1;
 }

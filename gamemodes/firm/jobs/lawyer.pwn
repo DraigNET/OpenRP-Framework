@@ -17,7 +17,7 @@
 #define ARREST_TIME_ELIGIBLE_THRESHOLD  (900)   // 15 min - below this, a lawyer isn't worth it (matches "stays at the station" RP)
 #define ARREST_TIME_MIN_REMAINING       (900)   // 15 min - a defended sentence can never be reduced below this
 #define ARREST_TIME_MAX_REDUCTION_PCT   (50)    // never reduce by more than this % of current remaining time
-#define LAWYER_MIN_RATE_PER_MINUTE      (100)   // lawyers set their own price, but not below this floor
+#define LAWYER_MIN_RATE_PER_MINUTE (Runtime_Int(RT_FIRMS_LAWYER_MINUTE_RATE)) // Cached database setting; edit through ACP.
 #define DEFEND_PROXIMITY_RANGE          (10.0)  // lawyer and prisoner must be in the same room (a guard has to walk the prisoner to a visitation room) - checked on both offer and accept
 
 // Returns true if the player is on duty in a lawyer firm.

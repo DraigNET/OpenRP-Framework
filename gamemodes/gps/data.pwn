@@ -18,121 +18,42 @@ enum E_GPS_DATA {
         E_GPS_JURISDICTION
     } ;
 
-new GPS [ ] [ E_GPS_DATA ] =
-{
-    {"Police Department (SAPD)", 	 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-    {"Hospital", 		 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-    {"Department of Motor Vehicles (DMV)", 	 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-    //{"Realty Listings", 				1360.1354,206.0129,19.5547, true }, // for /listings
-    {"Advert Agency", 					ADV_POS_X, ADV_POS_Y, ADV_POS_Z, true}, // /advert
+// Filled from service records and dealerships by Runtime_RebuildGPS.
+new GPS[256][E_GPS_DATA];
 
-    {"Car Scrapyard", 					 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-    {"Boat Scrapyard", 					 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-    {"Plane Scrapyard", 				 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-    {"Administration Building",			 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
+new bool:GPS_Available[sizeof GPS], GPS_DealerBase;
 
-    //{"Ocean Docks - Dockworker Job", 	2753.4329, -2453.7937, 13.6432, true },
-    {"Blueberry - Garbageman Job",	     0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-
-    {"Truck Stop - Fuel Station",		 0.0, 0.0, 0.0, true }, // TODO: set coordinates for your map
-
-    {"Chop Shop", 						CHOPSHOP_X, CHOPSHOP_Y, CHOPSHOP_Z, true},
-
-    //{"Aztecas Gun Dealer",1691.9714,-1972.4589,8.8253, true}, // ec_dealer
-    //{"Families Gun Dealer",2444.0278,-1965.5500,13.5469, true}, // emmet_families
-    //{"Vagos Gun Dealer",2611.7861,-1394.2970,34.9903, true}, // emmet_vagos
-    //{"Ballas Gun Dealer",2168.7156,-1507.5477,23.9246, true}, // ballas_emmet
-
-    // One placeholder row per possible dealership (MAX_DEALERSHIPS). GPS_SyncDealerships() names and positions them from
-    // the `dealerships` table, so /gps lists each dealership by its own name. Unused rows have no coordinates and aren't listed.
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Dealership",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-
-    //{"Gym: East Los Santos", 			LS_GYM_EXT_X, LS_GYM_EXT_Y, LS_GYM_EXT_Z, true},
-    //{"Gym: South Los Santos", 			LV_GYM_EXT_X, LV_GYM_EXT_Y, LV_GYM_EXT_Z, true},
-    //{"Gym: West Los Santos", 			BEACH_GYM_EXT_X, BEACH_GYM_EXT_Y, BEACH_GYM_EXT_Z, true},
-    // Re-enable once GANTON_GYM_EXT_* in config/data/header.pwn hold real coords again (currently 0.0 placeholders).
-    //{"Gym: Central Los Santos", 		GANTON_GYM_EXT_X, GANTON_GYM_EXT_Y, GANTON_GYM_EXT_Z, true},
-
-    // Pay 'N' Spray rows are placeholders too: LoadPayNSpray() names them and sets their coordinates from
-    // E_PNS_LOCATIONS, in order. Spare rows stay empty and aren't listed, so add a row here when you add a location.
-    {"Pay 'N' Spray",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Pay 'N' Spray",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Pay 'N' Spray",  0.0, 0.0, 0.0, true}, // TODO: set coordinates for your map
-    {"Pay 'N' Spray",  0.0, 0.0, 0.0, true} // TODO: set coordinates for your map
-} ;
-
-// A GPS row with no coordinates has nothing to point at, so it isn't offered.
-bool: GPS_IsAvailable(index)
-{
-    return ( GPS [ index ] [ E_GPS_POS_X ] != 0.0 || GPS [ index ] [ E_GPS_POS_Y ] != 0.0 ) ;
+// Availability is explicit so an enabled location at the origin remains valid.
+bool:GPS_IsAvailable(index) {
+    return index >= 0 && index < sizeof GPS && GPS_Available[index];
 }
 
-// Names and positions the dealership rows from the real dealerships, one row per dealership, in table order.
-// Called whenever a dealership is loaded, created, moved, renamed or deleted, so the GPS never drifts from them.
-GPS_SyncDealerships()
-{
-    static base = -1 ;
-
-    if ( base == -1 ) {
-
-        for ( new g ; g < sizeof ( GPS ) ; g ++ ) {
-
-            if ( ! strcmp ( GPS [ g ] [ E_GPS_DESC ], "Dealership" ) ) {
-
-                base = g ;
-                break ;
-            }
-        }
-
-        if ( base == -1 ) return false ;
+// Rebuild the destination list from the same snapshot used by service markers.
+// Interior/private-world locations cannot be reached by an outdoor GPS route.
+Runtime_RebuildGPS() {
+    for (new i; i < sizeof GPS; i++) { GPS_Available[i] = false; GPS[i][E_GPS_DESC][0] = EOS; }
+    new row;
+    for (new i; i < RuntimeLocationCount && row < sizeof GPS - MAX_DEALERSHIPS; i++) {
+        if (!RuntimeLocations[i][RLOC_ENABLED] || !RuntimeLocations[i][RLOC_GPS] || RuntimeLocations[i][RLOC_INTERIOR] || RuntimeLocations[i][RLOC_WORLD]) continue;
+        format(GPS[row][E_GPS_DESC],64,"%s",RuntimeLocations[i][RLOC_LABEL]);
+        GPS[row][E_GPS_POS_X]=RuntimeLocations[i][RLOC_X]; GPS[row][E_GPS_POS_Y]=RuntimeLocations[i][RLOC_Y]; GPS[row][E_GPS_POS_Z]=RuntimeLocations[i][RLOC_Z];
+        GPS[row][E_GPS_JURISDICTION]=1; GPS_Available[row++]=true;
     }
+    GPS_DealerBase=row;
+    return GPS_SyncDealerships();
+}
 
-    new row = base ;
-
-    for ( new d ; d < MAX_DEALERSHIPS && row < sizeof ( GPS ) ; d ++ ) {
-
-        if ( ! Dealerships [ d ] [ dealership_sqlid ] ) continue ;
-
-        format ( GPS [ row ] [ E_GPS_DESC ], 64, "%s", Dealerships [ d ] [ dealership_name ] ) ;
-        GPS [ row ] [ E_GPS_POS_X ] = Dealerships [ d ] [ dealership_pos_x ] ;
-        GPS [ row ] [ E_GPS_POS_Y ] = Dealerships [ d ] [ dealership_pos_y ] ;
-        GPS [ row ] [ E_GPS_POS_Z ] = Dealerships [ d ] [ dealership_pos_z ] ;
-        row ++ ;
+// Dealership changes update only the reserved tail of the GPS list.
+GPS_SyncDealerships() {
+    for (new row=GPS_DealerBase; row<sizeof GPS; row++) GPS_Available[row]=false;
+    new row=GPS_DealerBase;
+    for(new d; d<MAX_DEALERSHIPS && row<sizeof GPS; d++) {
+        if(!Dealerships[d][dealership_sqlid] || Dealerships[d][dealership_interior] || Dealerships[d][dealership_world]) continue;
+        format(GPS[row][E_GPS_DESC],64,"%s",Dealerships[d][dealership_name]);
+        GPS[row][E_GPS_POS_X]=Dealerships[d][dealership_pos_x]; GPS[row][E_GPS_POS_Y]=Dealerships[d][dealership_pos_y]; GPS[row][E_GPS_POS_Z]=Dealerships[d][dealership_pos_z];
+        GPS[row][E_GPS_JURISDICTION]=1; GPS_Available[row++]=true;
     }
-
-    // Rows left over (deleted dealerships) go back to unused.
-    for ( new end = base + MAX_DEALERSHIPS ; row < end && row < sizeof ( GPS ) ; row ++ ) {
-
-        format ( GPS [ row ] [ E_GPS_DESC ], 64, "Dealership" ) ;
-        GPS [ row ] [ E_GPS_POS_X ] = 0.0 ;
-        GPS [ row ] [ E_GPS_POS_Y ] = 0.0 ;
-        GPS [ row ] [ E_GPS_POS_Z ] = 0.0 ;
-    }
-
-    return true ;
+    return 1;
 }
 
 // Shows the paged /gps list of server locations.
@@ -146,6 +67,7 @@ GPS_ShowServerHotspots(playerid)
 
     // Pagination stuff
     new MAX_ITEMS_ON_PAGE = 10, string [ 1024 ], bool:nextpage ;
+    new menuRevision=RuntimeRevision;
     new resultcount = ((MAX_ITEMS_ON_PAGE * PlayerVar [ playerid ] [ E_PLAYER_GPSLIST_PAGE ]) - MAX_ITEMS_ON_PAGE) ;
 
 
@@ -193,6 +115,7 @@ GPS_ShowServerHotspots(playerid)
     {
 		#pragma unused pid, dialogid, inputtext
 
+        if(response && menuRevision!=RuntimeRevision) return GPS_ShowServerHotspots(playerid);
         new pick = ((MAX_ITEMS_ON_PAGE * PlayerVar [ playerid ] [ E_PLAYER_GPSLIST_PAGE ]) - MAX_ITEMS_ON_PAGE) + listitem;
         new selection = ( pick < visible_count ) ? visible [ pick ] : 0 ;
 
@@ -258,6 +181,7 @@ GPS_ShowServerHotspots(playerid)
 // Marks a chosen location on the player's map; staff also get a teleport option.
 GPS_ShowHotspot(playerid, selection, bool:options = false)
 {
+    if (!GPS_IsAvailable(selection)) return GPS_ShowServerHotspots(playerid);
     if (!options)
     {
         DisablePlayerCheckpoint(playerid);
@@ -272,6 +196,7 @@ GPS_ShowHotspot(playerid, selection, bool:options = false)
         return true;
     }
 
+    new menuRevision=RuntimeRevision;
     inline gps_showhotspot(pid, dialogid, response, listitem, string:inputtext[])
     {
 		#pragma unused pid, dialogid, inputtext
@@ -281,6 +206,7 @@ GPS_ShowHotspot(playerid, selection, bool:options = false)
             return GPS_ShowServerHotspots(playerid);
         }
 
+        if(menuRevision!=RuntimeRevision) return GPS_ShowServerHotspots(playerid);
         if (listitem == 0)
         {
             // Just do normal gps route

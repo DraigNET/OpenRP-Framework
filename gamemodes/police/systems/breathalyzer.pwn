@@ -6,7 +6,7 @@
 
 #define BREATHALYZER_DISTANCE       3.0
 #define BREATHALYZER_TEST_TIME      8
-#define BREATHALYZER_COOLDOWN       120
+#define BREATHALYZER_COOLDOWN (Runtime_Int(RT_POLICE_BREATHALYZER_COOLDOWN)) // Cached database setting; edit through ACP.
 #define BREATHALYZER_DETECT_WINDOW  3600
 
 #define BREATHALYZER_ANIM_LIB       "PLAYIDLES" // might change later for a better one
