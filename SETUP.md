@@ -8,6 +8,13 @@ SAPD and FDSA are the starter factions. Coordinates marked
 
 ## Common preparation
 
+Discord is disabled by default. The default sampctl manifest does not install or
+load its connector. To enable game-side Discord later, add
+`maddinat0r/samp-discord-connector:v0.3.5` to `pawn.json` dependencies, install the
+matching runtime plugin, configure your own bot token and channel/role values,
+and enable `DISCORD_ENABLED` in your local secrets before recompiling. Keep those
+credentials out of version control.
+
 Use open.mp, Pawn compiler 3.10.10, sampctl, Node.js 22.12 or newer, and MariaDB
 10.5 or newer. Clean imports are tested on MariaDB 10.5. Install matching runtime
 and plugin builds: Windows DLLs do not run on Linux. See the official

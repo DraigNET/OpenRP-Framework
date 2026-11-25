@@ -19,7 +19,6 @@
     "katursis/Pawn.RakNet:1.6.0",
     "pBlueG/SA-MP-MySQL:R41-4",
     "pawn-lang/YSI-Includes:v5.10.0006",
-    "maddinat0r/samp-discord-connector:v0.3.5",
     "pawn-lang/amx_assembly:v1.0"
   ],
   "local": true,
@@ -68,7 +67,6 @@
       "crashdetect_log": "crashdetectinfo.txt",
       "long_call_time": "50000",
       "profiler_outputformat": "txt",
-      "discord_bot_token": "YOUR_DISCORD_BOT_TOKEN",
       "gamemode0": "gamemode"
     }
   },

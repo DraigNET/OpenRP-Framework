@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Removed the Discord connector from default sampctl dependencies and token
+  options. Discord code remains available for explicit opt-in installation.
+
 - Removed unused external voice integration, SDK, configuration and web-only voice
   tables from the clean schema. Core game, UCP, ACP and editor are unaffected.
 

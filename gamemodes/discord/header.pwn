@@ -10,7 +10,8 @@
 //
 // Disabled by default: every DCC_Send* wrapper below is an empty stub, so the
 // discord-connector plugin is not required. To turn it on:
-//   1. add "discord-connector" to the plugin list (config.json / server.cfg) and set the
+//   1. install the optional maddinat0r/samp-discord-connector:v0.3.5 dependency,
+//      add "discord-connector" to the plugin list (config.json / server.cfg) and set the
 //      discord_bot_token option,
 //   2. uncomment `#define DISCORD_ENABLED` in config/secrets.pwn,
 //   3. define the channel / role values you want to use in config/secrets.pwn
